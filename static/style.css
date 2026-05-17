@@ -1,0 +1,101 @@
+body {
+
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6f9;
+
+}
+
+.container {
+
+    width: 95%;
+    margin: auto;
+    padding-top: 20px;
+
+}
+
+h1 {
+
+    text-align: center;
+    margin-bottom: 20px;
+    color: #222;
+
+}
+
+#busqueda {
+
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    border-radius: 10px;
+    border: 2px solid #ccc;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+
+    position: relative;
+    z-index: 9999;
+
+    background: white;
+
+}
+
+.tabla-container {
+
+    overflow-x: auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+
+}
+
+table {
+
+    width: 100%;
+    border-collapse: collapse;
+
+}
+
+th {
+
+    background: #1f2937;
+    color: white;
+    padding: 14px;
+    text-align: left;
+
+}
+
+td {
+
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+
+}
+
+tr:hover {
+
+    background: #f9fafb;
+
+}
+
+.nombre {
+
+    min-width: 350px;
+
+}
+
+.stock-input {
+
+    width: 90px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    text-align: center;
+
+}
+
+.guardado {
+
+    background: #b7ffb7 !important;
+
+}

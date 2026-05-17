@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+<meta charset="UTF-8">
+
+<title>Inventario</title>
+
+<style>
+
+body{
+    font-family: Arial;
+    margin: 20px;
+    background: #f4f4f4;
+}
+
+h1{
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#busqueda{
+
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+
+}
+
+.descargar-btn{
+
+    background:#007bff;
+    color:white;
+    border:none;
+    padding:12px 18px;
+    border-radius:6px;
+    cursor:pointer;
+    margin-bottom:20px;
+    font-size:16px;
+
+}
+
+.descargar-btn:hover{
+
+    background:#0056b3;
+
+}
+
+table{
+
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+
+}
+
+th{
+
+    background: #222;
+    color: white;
+    padding: 12px;
+    text-align: left;
+
+}
+
+td{
+
+    border: 1px solid #ddd;
+    padding: 10px;
+
+}
+
+.stock{
+
+    width: 90px;
+    padding: 6px;
+
+}
+
+.guardar-btn{
+
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+
+}
+
+.guardar-btn:hover{
+
+    background: #218838;
+
+}
+
+</style>
+
+</head>
+<body>
+
+<h1>Inventario</h1>
+
+<input
+    type="text"
+    id="busqueda"
+    placeholder="Buscar producto..."
+    autocomplete="off"
+>
+
+<button class="descargar-btn"
+onclick="window.location.href='/descargar'">
+
+    Descargar Excel
+
+</button>
+
+<table>
+
+<thead>
+
+<tr>
+    <th>Código</th>
+    <th>Nombre</th>
+    <th>Grupo</th>
+    <th>Bodega</th>
+    <th>Almacén</th>
+    <th>Última modificación</th>
+    <th>Guardar</th>
+</tr>
+
+</thead>
+
+<tbody id="tabla"></tbody>
+
+</table>
+
+<script>
+
+const buscador = document.getElementById("busqueda");
+
+const tabla = document.getElementById("tabla");
+
+
+buscador.addEventListener("keyup", async function(){
+
+    let texto = buscador.value.trim();
+
+    if(texto.length < 1){
+
+        tabla.innerHTML = "";
+        return;
+
+    }
+
+    let respuesta = await fetch(`/buscar?q=${texto}`);
+
+    let productos = await respuesta.json();
+
+    tabla.innerHTML = "";
+
+    productos.forEach(p => {
+
+        tabla.innerHTML += `
+
+        <tr>
+
+            <td>${p.codigo}</td>
+
+            <td>${p.nombre || ''}</td>
+
+            <td>${p.grupo || ''}</td>
+
+            <td>
+
+                <input
+                    class="stock"
+                    type="number"
+                    id="stock-${p.rowid}"
+                    value="${p.existencias_bodega || 0}"
+                >
+
+            </td>
+
+            <td>${p.existencias_almacen || 0}</td>
+
+            <td id="fecha-${p.rowid}">
+                ${p.ultima_modificacion || ''}
+            </td>
+
+            <td>
+
+                <button
+                    class="guardar-btn"
+                    onclick="guardar('${p.rowid}')"
+                >
+                    Guardar
+                </button>
+
+            </td>
+
+        </tr>
+
+        `;
+
+    });
+
+});
+
+
+async function guardar(rowid){
+
+    let input = document.getElementById(`stock-${rowid}`);
+
+    let respuesta = await fetch('/actualizar',{
+
+        method:'POST',
+
+        headers:{
+            'Content-Type':'application/json'
+        },
+
+        body:JSON.stringify({
+
+            rowid: rowid,
+            existencias_bodega: input.value
+
+        })
+
+    });
+
+    let data = await respuesta.json();
+
+    document.getElementById(
+        `fecha-${rowid}`
+    ).innerText = data.fecha;
+
+    input.style.background = "#b7ffb7";
+
+    setTimeout(()=>{
+
+        input.style.background = "";
+
+    },700);
+
+}
+
+</script>
+
+</body>
+</html>
