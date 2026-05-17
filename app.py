@@ -28,16 +28,18 @@ def buscar():
     texto = request.args.get('q', '').lower().strip()
     with engine.connect() as conn:
         df = pd.read_sql(
-            text("SELECT rowid, * FROM inventario WHERE lower(nombre) LIKE :q ORDER BY nombre ASC LIMIT 100"),
+            text("SELECT codigo, nombre, grupo, existencias_bodega, existencias_almacen, ultima_mod_cantidad, ultima_mod_nombre FROM inventario WHERE lower(nombre) LIKE :q ORDER BY nombre ASC LIMIT 100"),
             conn,
             params={"q": f"%{texto}%"}
         )
+    # Usamos codigo como rowid para compatibilidad con el frontend
+    df['rowid'] = df['codigo']
     return jsonify(df.to_dict(orient='records'))
 
 @app.route('/actualizar', methods=['POST'])
 def actualizar():
     data = request.json
-    rowid = data['rowid']
+    codigo = data['rowid']
     nueva_existencia = data['existencias_bodega']
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
@@ -46,8 +48,8 @@ def actualizar():
                 UPDATE inventario
                 SET existencias_bodega = :existencias,
                     ultima_mod_cantidad = :fecha
-                WHERE rowid = :rowid
-            """), {"existencias": nueva_existencia, "fecha": fecha, "rowid": rowid})
+                WHERE codigo = :codigo
+            """), {"existencias": nueva_existencia, "fecha": fecha, "codigo": codigo})
             conn.commit()
         return jsonify({'success': True, 'fecha': fecha})
     except Exception as e:
@@ -99,7 +101,7 @@ def actualizar_nombre():
     if not session.get('admin'):
         return jsonify({'success': False, 'error': 'No autorizado'}), 403
     data = request.json
-    rowid = data['rowid']
+    codigo = data['rowid']
     nuevo_nombre = data['nombre'].strip()
     fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     try:
@@ -108,8 +110,8 @@ def actualizar_nombre():
                 UPDATE inventario
                 SET nombre = :nombre,
                     ultima_mod_nombre = :fecha
-                WHERE rowid = :rowid
-            """), {"nombre": nuevo_nombre, "fecha": fecha, "rowid": rowid})
+                WHERE codigo = :codigo
+            """), {"nombre": nuevo_nombre, "fecha": fecha, "codigo": codigo})
             conn.commit()
         return jsonify({'success': True, 'fecha': fecha})
     except Exception as e:
