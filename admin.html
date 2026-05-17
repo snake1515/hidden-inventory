@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Inventario</title>
+<style>
+:root {
+    --bg: #f0f2f5;
+    --white: #ffffff;
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #28a745;
+    --success-dark: #1e7e34;
+    --warning: #f59e0b;
+    --text: #202124;
+    --text-soft: #5f6368;
+    --border: #dadce0;
+    --radius: 10px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+    min-height: 100vh;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+h1 { font-size: clamp(1.2rem, 4vw, 1.8rem); font-weight: 700; }
+
+.badge-admin {
+    background: #fce8b2;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.logout-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    transition: background 0.2s;
+}
+
+.logout-btn:hover { background: #b02a37; }
+
+.top-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+#busqueda {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 16px;
+    font-size: 16px;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--white);
+    outline: none;
+    transition: border-color 0.2s;
+    box-shadow: var(--shadow);
+}
+
+#busqueda:focus { border-color: var(--primary); }
+
+.descargar-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: var(--shadow);
+    transition: background 0.2s;
+}
+
+.descargar-btn:hover { background: var(--primary-dark); }
+
+.tabla-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    background: var(--white);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 750px;
+}
+
+th {
+    background: #222;
+    color: white;
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+td {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f8f9fa; }
+
+.stock {
+    width: 80px;
+    padding: 6px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 15px;
+    text-align: center;
+    transition: border-color 0.2s, background 0.3s;
+}
+
+.stock:focus { outline: none; border-color: var(--primary); }
+
+.nombre-input {
+    width: 100%;
+    min-width: 160px;
+    padding: 6px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s, background 0.3s;
+}
+
+.nombre-input:focus { outline: none; border-color: var(--warning); }
+
+.guardar-btn {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+    white-space: nowrap;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.guardar-btn:hover { background: var(--success-dark); }
+
+.guardar-nombre-btn {
+    background: var(--warning);
+    color: white;
+    border: none;
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 0.2s;
+    white-space: nowrap;
+    margin-bottom: 4px;
+}
+
+.guardar-nombre-btn:hover { background: #d97706; }
+
+.fecha-bloque {
+    font-size: 11px;
+    color: var(--text-soft);
+    line-height: 1.6;
+}
+
+/* ── TARJETAS MÓVIL ── */
+.cards-container {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.card {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    border-left: 4px solid var(--warning);
+}
+
+.card-codigo {
+    font-size: 12px;
+    color: var(--text-soft);
+    margin-bottom: 6px;
+}
+
+.card-nombre-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--warning);
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.card-nombre-input:focus { outline: none; border-color: #d97706; }
+
+.card-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-soft);
+    margin-bottom: 6px;
+}
+
+.card-row span:last-child { font-weight: 600; color: var(--text); }
+
+.card-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.card-footer label { font-size: 13px; color: var(--text-soft); white-space: nowrap; }
+.card-footer .stock { flex: 1; max-width: 90px; }
+
+.card-acciones {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.card-fechas {
+    font-size: 11px;
+    color: var(--text-soft);
+    margin-top: 8px;
+    line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+    body { padding: 12px; }
+    .tabla-wrapper { display: none; }
+    .cards-container { display: flex; }
+    .top-bar { flex-direction: column; }
+    .descargar-btn { width: 100%; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <h1>⚙️ Admin</h1>
+        <span class="badge-admin">ADMINISTRADOR</span>
+    </div>
+    <a class="logout-btn" href="/admin/logout">Cerrar sesión</a>
+</div>
+
+<div class="top-bar">
+    <input type="text" id="busqueda" placeholder="Buscar producto..." autocomplete="off">
+    <button class="descargar-btn" onclick="window.location.href='/descargar'">⬇ Descargar Excel</button>
+</div>
+
+<!-- Tabla desktop -->
+<div class="tabla-wrapper">
+    <table>
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre (editable)</th>
+                <th>Grupo</th>
+                <th>Bodega</th>
+                <th>Almacén</th>
+                <th>Fechas modificación</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tabla"></tbody>
+    </table>
+</div>
+
+<!-- Tarjetas móvil -->
+<div class="cards-container" id="cards"></div>
+
+<script>
+const buscador = document.getElementById("busqueda");
+const tabla = document.getElementById("tabla");
+const cards = document.getElementById("cards");
+
+buscador.addEventListener("keyup", async function () {
+    let texto = buscador.value.trim();
+    if (texto.length < 1) {
+        tabla.innerHTML = "";
+        cards.innerHTML = "";
+        return;
+    }
+    let respuesta = await fetch(`/buscar?q=${texto}`);
+    let productos = await respuesta.json();
+    tabla.innerHTML = "";
+    cards.innerHTML = "";
+
+    productos.forEach(p => {
+        let fechaCant = p.ultima_mod_cantidad ? '📦 Cantidad: ' + p.ultima_mod_cantidad : '📦 Cantidad: —';
+        let fechaNom  = p.ultima_mod_nombre  ? '✏️ Nombre: '  + p.ultima_mod_nombre  : '✏️ Nombre: —';
+
+        // Fila tabla
+        tabla.innerHTML += `
+        <tr>
+            <td>${p.codigo}</td>
+            <td><input class="nombre-input" type="text" id="nombre-${p.rowid}" value="${p.nombre || ''}"></td>
+            <td>${p.grupo || ''}</td>
+            <td><input class="stock" type="number" id="stock-${p.rowid}" value="${p.existencias_bodega || 0}"></td>
+            <td>${p.existencias_almacen || 0}</td>
+            <td><div class="fecha-bloque" id="fechas-${p.rowid}">${fechaCant}<br>${fechaNom}</div></td>
+            <td>
+                <button class="guardar-btn" onclick="guardar('${p.rowid}')">💾 Cantidad</button>
+                <button class="guardar-nombre-btn" onclick="guardarNombre('${p.rowid}')">✏️ Nombre</button>
+            </td>
+        </tr>`;
+
+        // Tarjeta móvil
+        cards.innerHTML += `
+        <div class="card">
+            <div class="card-codigo">Código: ${p.codigo}</div>
+            <input class="card-nombre-input" type="text" id="nombre-m-${p.rowid}" value="${p.nombre || ''}">
+            <div class="card-row"><span>Grupo</span><span>${p.grupo || '—'}</span></div>
+            <div class="card-row"><span>Almacén</span><span>${p.existencias_almacen || 0}</span></div>
+            <div class="card-footer">
+                <label>Bodega</label>
+                <input class="stock" type="number" id="stock-m-${p.rowid}" value="${p.existencias_bodega || 0}">
+            </div>
+            <div class="card-acciones">
+                <button class="guardar-btn" onclick="guardarMovil('${p.rowid}')">💾 Cantidad</button>
+                <button class="guardar-nombre-btn" onclick="guardarNombreMovil('${p.rowid}')">✏️ Nombre</button>
+            </div>
+            <div class="card-fechas" id="fechas-m-${p.rowid}">${fechaCant}<br>${fechaNom}</div>
+        </div>`;
+    });
+});
+
+async function guardar(rowid) {
+    let input = document.getElementById(`stock-${rowid}`);
+    await actualizarStock(rowid, input.value, input, rowid, false);
+}
+
+async function guardarMovil(rowid) {
+    let input = document.getElementById(`stock-m-${rowid}`);
+    await actualizarStock(rowid, input.value, input, rowid, true);
+    let inputDesktop = document.getElementById(`stock-${rowid}`);
+    if (inputDesktop) inputDesktop.value = input.value;
+}
+
+async function actualizarStock(rowid, valor, inputEl, id, movil) {
+    let respuesta = await fetch('/actualizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowid, existencias_bodega: valor })
+    });
+    let data = await respuesta.json();
+    actualizarFechaBloque(id, movil, 'cantidad', data.fecha);
+    inputEl.style.background = "#b7ffb7";
+    setTimeout(() => { inputEl.style.background = ""; }, 700);
+}
+
+async function guardarNombre(rowid) {
+    let input = document.getElementById(`nombre-${rowid}`);
+    await actualizarNombre(rowid, input.value, input, rowid, false);
+}
+
+async function guardarNombreMovil(rowid) {
+    let input = document.getElementById(`nombre-m-${rowid}`);
+    await actualizarNombre(rowid, input.value, input, rowid, true);
+    let inputDesktop = document.getElementById(`nombre-${rowid}`);
+    if (inputDesktop) inputDesktop.value = input.value;
+}
+
+async function actualizarNombre(rowid, nombre, inputEl, id, movil) {
+    let respuesta = await fetch('/admin/actualizar_nombre', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowid, nombre })
+    });
+    let data = await respuesta.json();
+    if (data.success) {
+        actualizarFechaBloque(id, movil, 'nombre', data.fecha);
+        inputEl.style.background = "#fff3cd";
+        setTimeout(() => { inputEl.style.background = ""; }, 700);
+    }
+}
+
+function actualizarFechaBloque(rowid, movil, tipo, fecha) {
+    let prefijo = movil ? 'fechas-m-' : 'fechas-';
+    let el = document.getElementById(prefijo + rowid);
+    if (!el) return;
+    let lineas = el.innerHTML.split('<br>');
+    if (tipo === 'cantidad') lineas[0] = '📦 Cantidad: ' + fecha;
+    if (tipo === 'nombre')   lineas[1] = '✏️ Nombre: '  + fecha;
+    el.innerHTML = lineas.join('<br>');
+    // Sincronizar el otro bloque
+    let elOtro = document.getElementById((movil ? 'fechas-' : 'fechas-m-') + rowid);
+    if (elOtro) elOtro.innerHTML = el.innerHTML;
+}
+</script>
+
+</body>
+</html>
