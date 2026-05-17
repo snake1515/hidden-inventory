@@ -16,8 +16,32 @@ ADMIN_PASS = "Chicharron123"
 def get_conn():
     return sqlite3.connect(DB_NAME, timeout=10)
 
+def migrar_db():
+    """Agrega columnas nuevas si no existen (migración segura)."""
+    conn = get_conn()
+    cursor = conn.cursor()
+    columnas = [row[1] for row in cursor.execute("PRAGMA table_info(inventario)")]
+
+    if 'ultima_mod_cantidad' not in columnas:
+        print("Migrando: agregando ultima_mod_cantidad...")
+        # Si existe la columna vieja, copiar sus datos
+        if 'ultima_modificacion' in columnas:
+            cursor.execute("ALTER TABLE inventario ADD COLUMN ultima_mod_cantidad TEXT DEFAULT ''")
+            cursor.execute("UPDATE inventario SET ultima_mod_cantidad = ultima_modificacion")
+        else:
+            cursor.execute("ALTER TABLE inventario ADD COLUMN ultima_mod_cantidad TEXT DEFAULT ''")
+
+    if 'ultima_mod_nombre' not in columnas:
+        print("Migrando: agregando ultima_mod_nombre...")
+        cursor.execute("ALTER TABLE inventario ADD COLUMN ultima_mod_nombre TEXT DEFAULT ''")
+
+    conn.commit()
+    conn.close()
+    print("Migración completada.")
+
 def init_db():
     if os.path.exists(DB_NAME):
+        migrar_db()
         return
     print("Importando CSV...")
     conn = get_conn()
