@@ -330,7 +330,7 @@ buscador.addEventListener("keyup", async function () {
                 <input class="stock" type="number" id="stock-m-${p.rowid}" value="${p.existencias_bodega || 0}">
                 <button class="guardar-btn" onclick="guardarMovil('${p.rowid}')">Guardar</button>
             </div>
-            <div class="card-fecha" id="fecha-m-${p.rowid}">${p.ultima_modificacion || ''}</div>
+            <div class="card-fecha" id="fecha-m-${p.rowid}">${p.ultima_modificacion ? 'Ítem modificado el ' + p.ultima_modificacion : ''}</div>
         </div>`;
     });
 });
@@ -356,7 +356,7 @@ async function actualizarStock(rowid, valor, inputEl, fechaId) {
     });
     let data = await respuesta.json();
     let fechaEl = document.getElementById(fechaId);
-    if (fechaEl) fechaEl.innerText = data.fecha;
+    if (fechaEl) fechaEl.innerText = fechaId.startsWith('fecha-m-') ? 'Ítem modificado el ' + data.fecha : data.fecha;
     inputEl.style.background = "#b7ffb7";
     setTimeout(() => { inputEl.style.background = ""; }, 700);
 }
@@ -364,3 +364,4 @@ async function actualizarStock(rowid, valor, inputEl, fechaId) {
 
 </body>
 </html>
+
