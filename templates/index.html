@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --accent: #e8ff3a;
+    --text: #f0f0f0;
+    --muted: #666;
+    --success: #3affa0;
+    --danger: #ff5a5a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo-h {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .user-info strong { color: var(--text); font-family: 'Space Mono', monospace; font-size: 11px; }
+  .btn-logout {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    text-decoration: none;
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+  .btn-logout:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MAIN */
+  .main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* SEARCH */
+  .search-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .search-bar input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px 18px;
+    font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    border-radius: 2px;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .btn-download {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 2px;
+    transition: border-color 0.2s;
+  }
+  .btn-download:hover { border-color: var(--accent); }
+
+  /* TABLE */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--surface);
+    padding: 12px 16px;
+    text-align: left;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  td {
+    padding: 12px 16px;
+    vertical-align: middle;
+  }
+  .td-codigo { color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; }
+  .td-grupo {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  /* Editable cell */
+  .editable {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .editable input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    width: 70px;
+    padding: 2px 4px;
+    outline: none;
+    text-align: right;
+    transition: border-color 0.2s;
+  }
+  .editable input:focus { border-color: var(--accent); }
+  .btn-save {
+    background: var(--accent);
+    color: #0f0f0f;
+    border: none;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .editable:hover .btn-save,
+  .editable input:focus ~ .btn-save { opacity: 1; }
+  .btn-save:hover { opacity: 0.85 !important; }
+
+  /* Audit info */
+  .audit {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .audit .user { color: var(--success); font-family: 'Space Mono', monospace; font-size: 10px; }
+
+  /* Estado mensajes */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--success);
+    color: var(--success);
+    padding: 14px 20px;
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    border-radius: 4px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    z-index: 9999;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  /* Stats */
+  .stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 12px 20px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stat strong { color: var(--text); font-family: 'Space Mono', monospace; font-size: 18px; display: block; }
+
+  /* Badge permiso */
+  .badge-almacen {
+    background: rgba(232,255,58,0.1);
+    border: 1px solid rgba(232,255,58,0.3);
+    color: var(--accent);
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-h">Inventario</span>
+  <div class="user-info">
+    {% if puede_editar_almacen %}
+    <span class="badge-almacen">ALMACÉN ✓</span>
+    {% endif %}
+    <span>Usuario: <strong>{{ usuario }}</strong></span>
+    <a class="btn-logout" href="/logout">Salir</a>
+  </div>
+</header>
+
+<div class="main">
+  <div class="search-bar">
+    <input type="text" id="busqueda" placeholder="Buscar por nombre o código..." autocomplete="off"/>
+    <a href="/descargar" class="btn-download">↓ Excel</a>
+  </div>
+
+  <div class="stats" id="stats" style="display:none">
+    <div class="stat"><strong id="stat-total">0</strong>Resultados</div>
+    <div class="stat"><strong id="stat-grupos">0</strong>Grupos</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Grupo</th>
+          <th>Almacén</th>
+          {% if puede_editar_almacen %}
+          <th>Bodega</th>
+          {% endif %}
+          <th>Última modificación</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body">
+        <tr><td colspan="6" class="empty">Busca un producto para comenzar</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PUEDE_ALMACEN = {{ 'true' if puede_editar_almacen else 'false' }};
+let debounceTimer;
+
+document.getElementById('busqueda').addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => buscar(this.value), 300);
+});
+
+function buscar(q) {
+  if (q.trim().length < 1) {
+    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="6" class="empty">Busca un producto para comenzar</td></tr>';
+    document.getElementById('stats').style.display = 'none';
+    return;
+  }
+  fetch('/buscar?q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(data => renderTabla(data));
+}
+
+function renderTabla(data) {
+  const tbody = document.getElementById('tabla-body');
+  const stats = document.getElementById('stats');
+
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin resultados</td></tr>';
+    stats.style.display = 'none';
+    return;
+  }
+
+  const grupos = new Set(data.map(d => d.grupo));
+  document.getElementById('stat-total').textContent = data.length;
+  document.getElementById('stat-grupos').textContent = grupos.size;
+  stats.style.display = 'flex';
+
+  tbody.innerHTML = data.map(item => {
+    const auditUser = item.modificado_por ? `<span class="user">${item.modificado_por}</span><br>` : '';
+    const auditDate = item.ultima_mod_cantidad || '—';
+
+    const almacenCol = PUEDE_ALMACEN ? `
+      <td>
+        <div class="editable">
+          <input type="number" value="${item.existencias_almacen ?? 0}"
+                 onchange="guardarAlmacen('${item.rowid}', this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="guardarAlmacenBtn(this)">OK</button>
+        </div>
+      </td>` : '';
+
+    return `<tr>
+      <td class="td-codigo">${item.codigo}</td>
+      <td>${item.nombre}</td>
+      <td class="td-grupo">${item.grupo}</td>
+      <td>
+        <div class="editable">
+          <input type="number" value="${item.existencias_bodega ?? 0}"
+                 data-rowid="${item.rowid}"
+                 onchange="guardarBodega('${item.rowid}', this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="guardarBoderaBtn(this)">OK</button>
+        </div>
+      </td>
+      ${almacenCol}
+      <td class="audit">${auditUser}${auditDate}</td>
+    </tr>`;
+  }).join('');
+}
+
+function guardarBodega(rowid, input) {
+  const val = parseInt(input.value) || 0;
+  fetch('/actualizar', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({rowid, existencias_bodega: val})
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.success) {
+      showToast(`✓ Bodega actualizada — ${res.usuario} — ${res.fecha}`);
+      // Actualizar audit en la fila
+      const row = input.closest('tr');
+      const audit = row.querySelector('.audit');
+      if (audit) audit.innerHTML = `<span class="user">${res.usuario}</span><br>${res.fecha}`;
+    } else {
+      showToast('Error: ' + res.error, true);
+    }
+  });
+}
+
+function guardarBoderaBtn(btn) {
+  const input = btn.parentElement.querySelector('input');
+  input.dispatchEvent(new Event('change'));
+}
+
+function guardarAlmacen(rowid, input) {
+  const val = parseInt(input.value) || 0;
+  fetch('/actualizar_almacen', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({rowid, existencias_almacen: val})
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.success) {
+      showToast(`✓ Almacén actualizado — ${res.usuario} — ${res.fecha}`);
+      const row = input.closest('tr');
+      const audit = row.querySelector('.audit');
+      if (audit) audit.innerHTML = `<span class="user">${res.usuario}</span><br>${res.fecha}`;
+    } else {
+      showToast('Error: ' + res.error, true);
+    }
+  });
+}
+
+function guardarAlmacenBtn(btn) {
+  const input = btn.parentElement.querySelector('input');
+  input.dispatchEvent(new Event('change'));
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
