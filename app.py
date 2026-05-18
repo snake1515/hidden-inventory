@@ -10,10 +10,7 @@ app.secret_key = "clave_secreta_inventario_2026"
 ADMIN_USER = "hanzo_hasashi"
 ADMIN_PASS = "Chicharron123"
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://postgres.dgbixtwlulcubdmfoixk:3MqBg6lB6e8W1q85@aws-1-us-west-1.pooler.supabase.com:5432/postgres"
-)
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 
