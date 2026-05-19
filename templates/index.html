@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #222;
+    --border: #2a2a2a; --accent: #e8ff3a; --text: #f0f0f0;
+    --muted: #666; --success: #3affa0; --danger: #ff5a5a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+
+  header {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:100;
+  }
+  .logo-h { font-family:'Space Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--accent); }
+  .user-info { display:flex; align-items:center; gap:12px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .user-info strong { color:var(--text); font-family:'Space Mono',monospace; font-size:11px; }
+  .badge { display:inline-block; font-size:10px; font-family:'Space Mono',monospace;
+           padding:2px 8px; border-radius:20px; letter-spacing:1px; }
+  .badge-on { background:rgba(232,255,58,.1); border:1px solid rgba(232,255,58,.3); color:var(--accent); }
+  .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted);
+                padding:6px 14px; font-size:11px; cursor:pointer; font-family:'Space Mono',monospace;
+                letter-spacing:1px; text-decoration:none; transition:all .2s; border-radius:2px; }
+  .btn-logout:hover { border-color:var(--accent); color:var(--accent); }
+
+  .main { max-width:1400px; margin:0 auto; padding:32px 24px; }
+
+  .search-bar { display:flex; gap:12px; margin-bottom:24px; }
+  .search-bar input { flex:1; background:var(--surface); border:1px solid var(--border);
+                      color:var(--text); padding:14px 18px; font-size:15px;
+                      font-family:'DM Sans',sans-serif; outline:none; border-radius:2px; transition:border-color .2s; }
+  .search-bar input:focus { border-color:var(--accent); }
+  .btn-download { background:var(--surface); border:1px solid var(--border); color:var(--text);
+                  padding:14px 20px; font-size:13px; cursor:pointer; text-decoration:none;
+                  font-family:'Space Mono',monospace; letter-spacing:1px; display:flex;
+                  align-items:center; gap:8px; border-radius:2px; transition:border-color .2s; }
+  .btn-download:hover { border-color:var(--accent); }
+
+  .stats { display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+  .stat { background:var(--surface); border:1px solid var(--border); padding:10px 18px; border-radius:4px; font-size:12px; color:var(--muted); }
+  .stat strong { color:var(--text); font-family:'Space Mono',monospace; font-size:16px; display:block; }
+
+  .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:var(--surface); padding:12px 14px; text-align:left;
+             font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px;
+             text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  tbody tr { border-bottom:1px solid var(--border); transition:background .15s; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:var(--surface2); }
+  td { padding:11px 14px; vertical-align:middle; }
+
+  .td-codigo { color:var(--muted); font-family:'Space Mono',monospace; font-size:11px; }
+  .td-grupo { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+
+  /* Editable cells */
+  .editable { display:inline-flex; align-items:center; gap:6px; }
+  .editable input[type=number] { background:transparent; border:none; border-bottom:1px solid var(--border);
+                      color:var(--text); font-size:13px; font-family:'DM Sans',sans-serif;
+                      width:70px; padding:2px 4px; outline:none; text-align:right; transition:border-color .2s; }
+  .editable input[type=number]:focus { border-color:var(--accent); }
+  .editable input[type=text] { background:transparent; border:none; border-bottom:1px solid var(--border);
+                      color:var(--text); font-size:13px; font-family:'DM Sans',sans-serif;
+                      width:100px; padding:2px 4px; outline:none; transition:border-color .2s; }
+  .editable input[type=text]:focus { border-color:var(--accent); }
+  .btn-save { background:var(--accent); color:#0f0f0f; border:none; font-size:10px;
+              font-family:'Space Mono',monospace; font-weight:700; letter-spacing:1px;
+              padding:3px 8px; cursor:pointer; border-radius:2px; opacity:0; transition:opacity .2s; }
+  .editable:hover .btn-save, .editable input:focus ~ .btn-save { opacity:1; }
+  .btn-save:hover { opacity:.85 !important; }
+
+  .locked { color:var(--muted); font-size:13px; }
+
+  .audit { font-size:11px; color:var(--muted); line-height:1.5; }
+  .audit .user { color:var(--success); font-family:'Space Mono',monospace; font-size:10px; }
+
+  .toast { position:fixed; bottom:24px; right:24px; background:var(--surface);
+           border:1px solid var(--success); color:var(--success); padding:14px 20px;
+           font-size:13px; font-family:'Space Mono',monospace; border-radius:4px;
+           opacity:0; transform:translateY(10px); transition:all .3s; z-index:9999;
+           pointer-events:none; max-width:420px; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.error { border-color:var(--danger); color:var(--danger); }
+
+  .empty { text-align:center; padding:60px 20px; color:var(--muted);
+           font-family:'Space Mono',monospace; font-size:12px; letter-spacing:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-h">Inventario</span>
+  <div class="user-info">
+    {% if puede_editar_bodega %}<span class="badge badge-on">BODEGA ✓</span>{% endif %}
+    {% if puede_editar_almacen %}<span class="badge badge-on">ALMACÉN ✓</span>{% endif %}
+    <span>Usuario: <strong>{{ usuario }}</strong></span>
+    <a class="btn-logout" href="/logout">Salir</a>
+  </div>
+</header>
+
+<div class="main">
+  <div class="search-bar">
+    <input type="text" id="busqueda" placeholder="Buscar por nombre, código o referencia..." autocomplete="off"/>
+    <a href="/descargar" class="btn-download">↓ Excel</a>
+  </div>
+
+  <div class="stats" id="stats" style="display:none">
+    <div class="stat"><strong id="stat-total">0</strong>Resultados</div>
+    <div class="stat"><strong id="stat-grupos">0</strong>Grupos</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nombre</th>
+          <th>Referencia</th>
+          <th>Grupo</th>
+          <th>Almacén</th>
+          <th>Bodega</th>
+          <th>Última modificación</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body">
+        <tr><td colspan="7" class="empty">Busca un producto para comenzar</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PUEDE_ALMACEN = {{ 'true' if puede_editar_almacen else 'false' }};
+const PUEDE_BODEGA  = {{ 'true' if puede_editar_bodega else 'false' }};
+let debounceTimer;
+
+document.getElementById('busqueda').addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => buscar(this.value), 300);
+});
+
+function buscar(q) {
+  if (!q.trim()) {
+    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="7" class="empty">Busca un producto para comenzar</td></tr>';
+    document.getElementById('stats').style.display = 'none';
+    return;
+  }
+  fetch('/buscar?q=' + encodeURIComponent(q))
+    .then(r => r.json()).then(data => renderTabla(data));
+}
+
+function renderTabla(data) {
+  const tbody = document.getElementById('tabla-body');
+  const stats = document.getElementById('stats');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin resultados</td></tr>';
+    stats.style.display = 'none';
+    return;
+  }
+  const grupos = new Set(data.map(d => d.grupo));
+  document.getElementById('stat-total').textContent = data.length;
+  document.getElementById('stat-grupos').textContent = grupos.size;
+  stats.style.display = 'flex';
+
+  tbody.innerHTML = data.map(item => {
+    const auditUser = item.modificado_por ? `<span class="user">${item.modificado_por}</span><br>` : '';
+    const auditDate = item.ultima_mod_cantidad || '—';
+
+    // Columna Referencia — editable para todos
+    const refCell = `
+      <td>
+        <div class="editable">
+          <input type="text" value="${item.referencia || ''}"
+                 onchange="guardarReferencia('${item.rowid}', this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
+        </div>
+      </td>`;
+
+    // Columna Almacén
+    const almacenCell = PUEDE_ALMACEN ? `
+      <td>
+        <div class="editable">
+          <input type="number" value="${item.existencias_bodega ?? 0}"
+                 onchange="guardarAlmacen('${item.rowid}', this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
+        </div>
+      </td>` : `<td class="locked">${item.existencias_bodega ?? 0}</td>`;
+
+    // Columna Bodega
+    const bodegaCell = PUEDE_BODEGA ? `
+      <td>
+        <div class="editable">
+          <input type="number" value="${item.existencias_almacen ?? 0}"
+                 onchange="guardarBodega('${item.rowid}', this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
+        </div>
+      </td>` : `<td class="locked">${item.existencias_almacen ?? 0}</td>`;
+
+    return `<tr>
+      <td class="td-codigo">${item.codigo}</td>
+      <td>${item.nombre}</td>
+      ${refCell}
+      <td class="td-grupo">${item.grupo}</td>
+      ${almacenCell}
+      ${bodegaCell}
+      <td class="audit">${auditUser}${auditDate}</td>
+    </tr>`;
+  }).join('');
+}
+
+function guardarReferencia(rowid, input) {
+  fetch('/actualizar_referencia', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({rowid, referencia: input.value})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) {
+      showToast(`✓ Referencia guardada — ${res.usuario}`);
+      actualizarAudit(input, res);
+    } else showToast('Error: ' + res.error, true);
+  });
+}
+
+function guardarAlmacen(rowid, input) {
+  fetch('/actualizar_almacen', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({rowid, existencias_almacen: parseInt(input.value) || 0})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) {
+      showToast(`✓ Almacén actualizado — ${res.usuario}`);
+      actualizarAudit(input, res);
+    } else showToast('Error: ' + res.error, true);
+  });
+}
+
+function guardarBodega(rowid, input) {
+  fetch('/actualizar', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({rowid, existencias_bodega: parseInt(input.value) || 0})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) {
+      showToast(`✓ Bodega actualizada — ${res.usuario}`);
+      actualizarAudit(input, res);
+    } else showToast('Error: ' + res.error, true);
+  });
+}
+
+function actualizarAudit(input, res) {
+  const audit = input.closest('tr').querySelector('.audit');
+  if (audit) audit.innerHTML = `<span class="user">${res.usuario}</span><br>${res.fecha}`;
+}
+
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
