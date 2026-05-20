@@ -1,43 +1,50 @@
+
+Copiar
+
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import pandas as pd
 import os
 from datetime import datetime
 from sqlalchemy import create_engine, text
 import bcrypt
-
+ 
 app = Flask(__name__)
 app.secret_key = "clave_secreta_inventario_2026"
-
+ 
 ADMIN_USER = "jk2m_admin"
 ADMIN_PASS = "Chicharron123"
-
+ 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
-
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"connect_timeout": 10},
+    pool_pre_ping=True
+)
+ 
 # ─────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────
-
+ 
 def get_current_user():
     if session.get('admin'):
         return ADMIN_USER
     return session.get('usuario_nombre', 'desconocido')
-
+ 
 def usuario_puede_editar_almacen():
     if session.get('admin'):
         return True
     return session.get('puede_editar_almacen', False)
-
+ 
 def usuario_puede_editar_bodega():
     if session.get('admin'):
         return True
     return session.get('puede_editar_bodega', False)
-
+ 
 def get_grupos_usuario():
     if session.get('admin'):
         return None
     return session.get('grupos', [])
-
+ 
 def login_required(f):
     from functools import wraps
     @wraps(f)
@@ -46,11 +53,11 @@ def login_required(f):
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
-
+ 
 # ─────────────────────────────────────────
 # LOGIN
 # ─────────────────────────────────────────
-
+ 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('usuario_id') or session.get('admin'):
@@ -82,16 +89,16 @@ def login():
         else:
             error = "Usuario no encontrado o inactivo."
     return render_template('login.html', error=error)
-
+ 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
-
+ 
 # ─────────────────────────────────────────
 # INVENTARIO PRINCIPAL
 # ─────────────────────────────────────────
-
+ 
 @app.route('/')
 @login_required
 def index():
@@ -99,33 +106,33 @@ def index():
                            usuario=get_current_user(),
                            puede_editar_almacen=usuario_puede_editar_almacen(),
                            puede_editar_bodega=usuario_puede_editar_bodega())
-
+ 
 @app.route('/buscar')
 @login_required
 def buscar():
     texto = request.args.get('q', '').lower().strip()
     grupos = get_grupos_usuario()
     q = f"%{texto}%"
-
+ 
     # Palabras separadas para búsqueda en nombre
     palabras = texto.split()
     nombre_conditions = ' AND '.join([f"lower(nombre) LIKE :p{i}" for i in range(len(palabras))])
     nombre_params = {f"p{i}": f"%{p}%" for i, p in enumerate(palabras)}
-
+ 
     base_select = """SELECT codigo, nombre, referencia, marca, grupo,
                             existencias_bodega, existencias_almacen,
                             ultima_mod_cantidad, ultima_mod_nombre, modificado_por
                      FROM inventario"""
-
+ 
     where = f"""WHERE (
         ({nombre_conditions})
         OR lower(codigo::text) LIKE :q
         OR lower(coalesce(referencia,'')) LIKE :q
         OR lower(coalesce(marca,'')) LIKE :q
     )"""
-
+ 
     params = {"q": q, **nombre_params}
-
+ 
     with engine.connect() as conn:
         if grupos is None:
             df = pd.read_sql(text(f"{base_select} {where} ORDER BY nombre ASC LIMIT 200"),
@@ -138,7 +145,7 @@ def buscar():
                              conn, params=params)
     df['rowid'] = df['codigo']
     return jsonify(df.to_dict(orient='records'))
-
+ 
 @app.route('/actualizar', methods=['POST'])
 @login_required
 def actualizar():
@@ -157,7 +164,7 @@ def actualizar():
         return jsonify({'success': True, 'fecha': fecha, 'usuario': usuario})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/actualizar_almacen', methods=['POST'])
 @login_required
 def actualizar_almacen():
@@ -176,7 +183,7 @@ def actualizar_almacen():
         return jsonify({'success': True, 'fecha': fecha, 'usuario': usuario})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/actualizar_referencia', methods=['POST'])
 @login_required
 def actualizar_referencia():
@@ -193,7 +200,7 @@ def actualizar_referencia():
         return jsonify({'success': True, 'fecha': fecha, 'usuario': usuario})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/actualizar_marca', methods=['POST'])
 @login_required
 def actualizar_marca():
@@ -210,19 +217,19 @@ def actualizar_marca():
         return jsonify({'success': True, 'fecha': fecha, 'usuario': usuario})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/descargar')
 @login_required
 def descargar():
     grupos = get_grupos_usuario()
     solo_existencias = request.args.get('solo_existencias') == '1'
-
+ 
     base_select = """SELECT codigo, nombre, referencia, marca, grupo,
                             existencias_bodega AS existencias_almacen,
                             existencias_almacen AS existencias_bodega,
                             ultima_mod_cantidad, ultima_mod_nombre, modificado_por
                      FROM inventario"""
-
+ 
     with engine.connect() as conn:
         if grupos is None:
             df = pd.read_sql(text(f"{base_select} ORDER BY nombre"), conn)
@@ -232,19 +239,19 @@ def descargar():
             else:
                 placeholders = ','.join([f"'{g}'" for g in grupos])
                 df = pd.read_sql(text(f"{base_select} WHERE grupo IN ({placeholders}) ORDER BY nombre"), conn)
-
+ 
     if solo_existencias and not df.empty:
         df = df[(df['existencias_almacen'] > 0) | (df['existencias_bodega'] > 0)]
-
+ 
     nombre_archivo = "inventario_con_existencias.xlsx" if solo_existencias else "inventario_completo.xlsx"
     archivo = f"/tmp/{nombre_archivo}"
     df.to_excel(archivo, index=False)
     return send_file(archivo, as_attachment=True, download_name=nombre_archivo)
-
+ 
 # ─────────────────────────────────────────
 # ADMIN LOGIN / PANEL
 # ─────────────────────────────────────────
-
+ 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
     if session.get('admin'):
@@ -257,7 +264,7 @@ def admin_login():
             return redirect(url_for('admin_panel'))
         error = "Usuario o contraseña incorrectos."
     return render_template('admin_login.html', error=error)
-
+ 
 @app.route('/admin/panel')
 def admin_panel():
     if not session.get('admin'):
@@ -275,16 +282,16 @@ def admin_panel():
         """)).fetchall()
         usuarios = [dict(row._mapping) for row in usuarios_rows]
     return render_template('admin.html', grupos_disponibles=grupos_disponibles, usuarios=usuarios)
-
+ 
 @app.route('/admin/logout')
 def admin_logout():
     session.clear()
     return redirect(url_for('admin_login'))
-
+ 
 # ─────────────────────────────────────────
 # ADMIN — USUARIOS
 # ─────────────────────────────────────────
-
+ 
 @app.route('/admin/crear_usuario', methods=['POST'])
 def crear_usuario():
     if not session.get('admin'):
@@ -305,7 +312,7 @@ def crear_usuario():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/editar_usuario', methods=['POST'])
 def editar_usuario():
     if not session.get('admin'):
@@ -324,7 +331,7 @@ def editar_usuario():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/eliminar_usuario', methods=['POST'])
 def eliminar_usuario():
     if not session.get('admin'):
@@ -336,11 +343,11 @@ def eliminar_usuario():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 # ─────────────────────────────────────────
 # ADMIN — INVENTARIO
 # ─────────────────────────────────────────
-
+ 
 @app.route('/admin/purgar_inventario', methods=['POST'])
 def purgar_inventario():
     if not session.get('admin'):
@@ -352,7 +359,7 @@ def purgar_inventario():
         return jsonify({'success': True, 'eliminados': result.rowcount})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/agregar_item', methods=['POST'])
 def agregar_item():
     if not session.get('admin'):
@@ -376,7 +383,7 @@ def agregar_item():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/editar_item', methods=['POST'])
 def editar_item():
     if not session.get('admin'):
@@ -401,7 +408,7 @@ def editar_item():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/eliminar_item', methods=['POST'])
 def eliminar_item():
     if not session.get('admin'):
@@ -413,7 +420,7 @@ def eliminar_item():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/buscar_items')
 def admin_buscar_items():
     if not session.get('admin'):
@@ -430,11 +437,11 @@ def admin_buscar_items():
             ORDER BY nombre ASC LIMIT 100
         """), conn, params={"q": f"%{texto}%"})
     return jsonify(df.to_dict(orient='records'))
-
+ 
 # ─────────────────────────────────────────
 # ADMIN — CSV LOTES
 # ─────────────────────────────────────────
-
+ 
 @app.route('/admin/carga_csv_lote', methods=['POST'])
 def carga_csv_lote():
     if not session.get('admin'):
@@ -445,35 +452,45 @@ def carga_csv_lote():
         insertados = omitidos = 0
         with engine.connect() as conn:
             for row in filas:
-                codigo = str(row.get('codigo', '')).strip()
-                nombre = str(row.get('nombre', '')).strip()
-                grupo = str(row.get('grupo', '')).strip()
-                if not codigo or not nombre or not grupo:
-                    omitidos += 1; continue
-                referencia = str(row.get('referencia', '')).strip()
-                marca = str(row.get('marca', '')).strip()
-                for val in ('nan', 'none'):
-                    if referencia.lower() == val: referencia = ''
-                    if marca.lower() == val: marca = ''
                 try:
-                    bodega = int(float(str(row.get('existencias_bodega', 0)).strip() or 0))
-                    almacen = int(float(str(row.get('existencias_almacen', 0)).strip() or 0))
-                except: bodega = almacen = 0
-                result = conn.execute(text("""
-                    INSERT INTO inventario (codigo, nombre, referencia, marca, grupo,
-                                            existencias_bodega, existencias_almacen,
-                                            ultima_mod_cantidad, ultima_mod_nombre, modificado_por)
-                    VALUES (:codigo, :nombre, :ref, :marca, :grupo, :bodega, :almacen, :fecha, :admin, :admin)
-                    ON CONFLICT (codigo) DO NOTHING
-                """), {"codigo": codigo, "nombre": nombre, "ref": referencia, "marca": marca,
-                       "grupo": grupo, "bodega": bodega, "almacen": almacen, "fecha": fecha, "admin": ADMIN_USER})
-                if result.rowcount > 0: insertados += 1
-                else: omitidos += 1
+                    codigo = str(row.get('codigo', '')).strip()
+                    nombre = str(row.get('nombre', '')).strip()
+                    grupo = str(row.get('grupo', '')).strip()
+                    if not codigo or not nombre or not grupo:
+                        omitidos += 1
+                        continue
+                    referencia = str(row.get('referencia', '') or '').strip()
+                    marca = str(row.get('marca', '') or '').strip()
+                    for val in ('nan', 'none'):
+                        if referencia.lower() == val: referencia = ''
+                        if marca.lower() == val: marca = ''
+                    def parse_int(v):
+                        try:
+                            s = str(v).strip()
+                            if not s or s.lower() in ('nan','none',''): return 0
+                            return int(float(s))
+                        except: return 0
+                    bodega = parse_int(row.get('existencias_bodega', 0))
+                    almacen = parse_int(row.get('existencias_almacen', 0))
+                    result = conn.execute(text("""
+                        INSERT INTO inventario (codigo, nombre, referencia, marca, grupo,
+                                                existencias_bodega, existencias_almacen,
+                                                ultima_mod_cantidad, ultima_mod_nombre, modificado_por)
+                        VALUES (:codigo, :nombre, :ref, :marca, :grupo, :bodega, :almacen, :fecha, :admin, :admin)
+                        ON CONFLICT (codigo) DO NOTHING
+                    """), {"codigo": codigo, "nombre": nombre, "ref": referencia, "marca": marca,
+                           "grupo": grupo, "bodega": bodega, "almacen": almacen,
+                           "fecha": fecha, "admin": ADMIN_USER})
+                    if result.rowcount > 0: insertados += 1
+                    else: omitidos += 1
+                except Exception as row_err:
+                    omitidos += 1
+                    continue
             conn.commit()
         return jsonify({'success': True, 'insertados': insertados, 'omitidos': omitidos})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/carga_csv_referencias_lote', methods=['POST'])
 def carga_csv_referencias_lote():
     if not session.get('admin'):
@@ -498,7 +515,7 @@ def carga_csv_referencias_lote():
         return jsonify({'success': True, 'actualizados': actualizados, 'omitidos': omitidos})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 @app.route('/admin/actualizar_nombre', methods=['POST'])
 def actualizar_nombre():
     if not session.get('admin'):
@@ -514,6 +531,6 @@ def actualizar_nombre():
         return jsonify({'success': True, 'fecha': fecha})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
+ 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
