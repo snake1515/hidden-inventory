@@ -1,7 +1,8 @@
 flask
 pandas
 sqlalchemy
-openpyxl
-gunicorn
-psycopg2-binary
 bcrypt
+openpyxl
+psycopg2-binary
+httpx
+gunicorn
