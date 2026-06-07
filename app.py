@@ -402,14 +402,21 @@ def movimientos_crear():
                 origen   = item.get('origen')   # 'bodega' | 'almacen' | None
                 destino  = item.get('destino')  # 'bodega' | 'almacen' | None
 
+                # Verificar si el producto existía antes del movimiento
+                existe = conn.execute(text(
+                    "SELECT 1 FROM inventario WHERE codigo = :cod"
+                ), {"cod": codigo}).fetchone()
+                es_nuevo = not existe
+
                 conn.execute(text("""
                     INSERT INTO movimiento_items
                         (movimiento_id, producto_codigo, producto_nombre, cantidad,
-                         ubicacion_origen, ubicacion_destino)
-                    VALUES (:mid, :cod, :nom, :cant, :orig, :dest)
+                         ubicacion_origen, ubicacion_destino, es_nuevo)
+                    VALUES (:mid, :cod, :nom, :cant, :orig, :dest, :es_nuevo)
                 """), {
                     "mid": mov_id, "cod": codigo, "nom": nombre,
-                    "cant": cantidad, "orig": origen, "dest": destino
+                    "cant": cantidad, "orig": origen, "dest": destino,
+                    "es_nuevo": es_nuevo
                 })
 
                 # Ajustar existencias según tipo
@@ -845,7 +852,7 @@ def movimientos_revertir(mov_id):
                 return jsonify({'success': False, 'error': 'Movimiento no encontrado'}), 404
 
             items = conn.execute(text("""
-                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino
+                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino, es_nuevo
                 FROM movimiento_items WHERE movimiento_id = :id
             """), {"id": mov_id}).fetchall()
 
@@ -858,14 +865,21 @@ def movimientos_revertir(mov_id):
                 cantidad = item.cantidad
                 origen   = item.ubicacion_origen
                 destino  = item.ubicacion_destino
+                es_nuevo = item.es_nuevo
 
                 if tipo == 'ingreso':
-                    col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
-                    conn.execute(text(f"""
-                        UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
-                            ultima_mod_cantidad = :f, modificado_por = :u
-                        WHERE codigo = :cod
-                    """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+                    if es_nuevo:
+                        # Producto creado en este movimiento → eliminarlo del inventario
+                        conn.execute(text(
+                            "DELETE FROM inventario WHERE codigo = :cod"
+                        ), {"cod": codigo})
+                    else:
+                        col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
+                        conn.execute(text(f"""
+                            UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
+                                ultima_mod_cantidad = :f, modificado_por = :u
+                            WHERE codigo = :cod
+                        """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
 
                 elif tipo == 'egreso':
                     col = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
@@ -900,6 +914,30 @@ def movimientos_revertir(mov_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
