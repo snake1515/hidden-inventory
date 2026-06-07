@@ -206,7 +206,7 @@
   <div class="hlinks">
     <span class="usuario-tag">{{ usuario }}</span>
     <a href="/">← Inventario</a>
-    {% if es_admin %}<a href="/admin/panel">Admin</a>{% endif %}
+    {% if es_admin %}<a href="/admin" style="border-color:rgba(58,255,160,.3);color:var(--success)">⚙ Panel Admin</a>{% endif %}
     <a href="/logout">Salir</a>
   </div>
 </header>
@@ -828,5 +828,6 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
 
 
