@@ -401,12 +401,28 @@ def movimientos_crear():
                 cantidad = int(item['cantidad'])
                 origen   = item.get('origen')   # 'bodega' | 'almacen' | None
                 destino  = item.get('destino')  # 'bodega' | 'almacen' | None
+                datos_nuevos = item.get('datos_nuevos')  # solo si es producto nuevo
 
-                # Verificar si el producto existía antes del movimiento
-                existe = conn.execute(text(
-                    "SELECT 1 FROM inventario WHERE codigo = :cod"
-                ), {"cod": codigo}).fetchone()
-                es_nuevo = not existe
+                # Si viene con datos_nuevos, crear el producto en inventario primero
+                es_nuevo = False
+                if datos_nuevos:
+                    existe = conn.execute(text(
+                        "SELECT 1 FROM inventario WHERE codigo = :cod"
+                    ), {"cod": codigo}).fetchone()
+                    if not existe:
+                        es_nuevo = True
+                        grupo     = str(datos_nuevos.get('grupo', '')).strip()
+                        referencia = str(datos_nuevos.get('referencia', '') or '').strip()
+                        marca      = str(datos_nuevos.get('marca', '') or '').strip()
+                        conn.execute(text("""
+                            INSERT INTO inventario (codigo, nombre, referencia, marca, grupo,
+                                existencias_bodega, existencias_almacen,
+                                ultima_mod_cantidad, ultima_mod_nombre, modificado_por)
+                            VALUES (:codigo, :nombre, :ref, :marca, :grupo, 0, 0, :fecha, :usuario, :usuario)
+                        """), {
+                            "codigo": codigo, "nombre": nombre, "ref": referencia,
+                            "marca": marca, "grupo": grupo, "fecha": fecha, "usuario": usuario
+                        })
 
                 conn.execute(text("""
                     INSERT INTO movimiento_items
@@ -852,7 +868,8 @@ def movimientos_revertir(mov_id):
                 return jsonify({'success': False, 'error': 'Movimiento no encontrado'}), 404
 
             items = conn.execute(text("""
-                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino, es_nuevo
+                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino,
+                       COALESCE(es_nuevo, false) as es_nuevo
                 FROM movimiento_items WHERE movimiento_id = :id
             """), {"id": mov_id}).fetchall()
 
@@ -914,6 +931,31 @@ def movimientos_revertir(mov_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
