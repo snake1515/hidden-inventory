@@ -618,6 +618,23 @@ def purgar_inventario():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/admin/siguiente_codigo')
+def siguiente_codigo():
+    if not session.get('admin') and not session.get('usuario_id'):
+        return jsonify({'error': 'No autorizado'}), 403
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(text("""
+                SELECT MAX(CAST(codigo AS INTEGER)) as max_cod
+                FROM inventario
+                WHERE codigo ~ '^[0-9]+$'
+            """)).fetchone()
+            max_cod = row.max_cod if row and row.max_cod else 0
+        return jsonify({'siguiente': max_cod + 1})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/admin/agregar_item', methods=['POST'])
 def agregar_item():
     if not session.get('admin'):
@@ -880,6 +897,7 @@ def movimientos_revertir(mov_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
