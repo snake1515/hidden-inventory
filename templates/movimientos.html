@@ -614,14 +614,22 @@ function agregarProductoExistente(p) {
 // ─── PRODUCTO NUEVO ───
 function abrirNuevoProd(q) {
   document.getElementById('prod-dropdown').classList.remove('open');
-  // Pre-rellenar nombre si q parece un nombre
   document.getElementById('np-nombre').value = q;
-  document.getElementById('np-codigo').value  = '';
+  document.getElementById('np-codigo').value  = 'Cargando...';
   document.getElementById('np-referencia').value = '';
   document.getElementById('np-marca').value   = '';
   document.getElementById('np-grupo').value   = '';
   document.getElementById('nuevo-prod-form').classList.add('open');
   document.getElementById('prod-search').value = '';
+  // Cargar siguiente código consecutivo
+  fetch('/admin/siguiente_codigo')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('np-codigo').value = d.siguiente ?? '';
+    })
+    .catch(() => {
+      document.getElementById('np-codigo').value = '';
+    });
 }
 function cerrarNuevoProd() {
   document.getElementById('nuevo-prod-form').classList.remove('open');
@@ -820,4 +828,5 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
 
