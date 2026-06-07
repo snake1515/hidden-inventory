@@ -100,6 +100,9 @@
     {% if puede_ver_movimientos %}
     <a class="btn-logout" href="/movimientos" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Movimientos</a>
     {% endif %}
+    {% if es_admin %}
+    <a class="btn-logout" href="/admin" style="border-color:rgba(58,255,160,.3);color:var(--success)">⚙ Panel Admin</a>
+    {% endif %}
     <span>Usuario: <strong>{{ usuario }}</strong></span>
     <a class="btn-logout" href="/logout">Salir</a>
   </div>
@@ -302,4 +305,6 @@ function showToast(msg, isError=false) {
 </script>
 </body>
 </html>
+
+
 
