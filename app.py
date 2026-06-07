@@ -78,17 +78,20 @@ def _storage_headers():
         "Authorization": f"Bearer {SUPABASE_KEY}",
     }
 
-def subir_pdf_supabase(file_bytes: bytes, filename: str) -> str | None:
-    """Sube un PDF al bucket y devuelve el path almacenado, o None si falla."""
+def subir_pdf_supabase(file_bytes: bytes, filename: str) -> tuple:
+    """Sube un PDF al bucket. Devuelve (path, None) si ok, (None, error_msg) si falla."""
     if not SUPABASE_URL or not SUPABASE_KEY:
-        return None
+        return None, "SUPABASE_URL o SUPABASE_KEY no configurados"
     path = f"{datetime.now().strftime('%Y/%m')}/{filename}"
     url  = f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}"
     headers = {**_storage_headers(), "Content-Type": "application/pdf"}
-    r = httpx.put(url, content=file_bytes, headers=headers, timeout=30)
-    if r.status_code in (200, 201):
-        return path
-    return None
+    try:
+        r = httpx.put(url, content=file_bytes, headers=headers, timeout=30)
+        if r.status_code in (200, 201):
+            return path, None
+        return None, f"Supabase respondió {r.status_code}: {r.text[:300]}"
+    except Exception as e:
+        return None, f"Excepción httpx: {str(e)}"
 
 def obtener_pdf_supabase(path: str) -> bytes | None:
     """Descarga un PDF del bucket y devuelve los bytes, o None si falla."""
@@ -453,10 +456,10 @@ def movimientos_upload_pdf():
         return jsonify({'success': False, 'error': 'Solo PDF'}), 400
     ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{ts}_{f.filename}"
-    path     = subir_pdf_supabase(f.read(), filename)
+    path, err = subir_pdf_supabase(f.read(), filename)
     if path:
         return jsonify({'success': True, 'path': path})
-    return jsonify({'success': False, 'error': 'Error subiendo PDF. Verifica SUPABASE_URL y SUPABASE_KEY.'}), 500
+    return jsonify({'success': False, 'error': err or 'Error desconocido subiendo PDF'}), 500
 
 @app.route('/movimientos/pdf/<int:mov_id>')
 @movimientos_required
@@ -897,6 +900,10 @@ def movimientos_revertir(mov_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
 
 
 
