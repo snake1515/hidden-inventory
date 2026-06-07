@@ -393,6 +393,7 @@ let pdfPath     = null; // path en Supabase una vez subido
 let pdfFile     = null; // File object pendiente de subir
 let debounceTimer, debounceMovTimer;
 let detMovId    = null;
+let proximoCodigo = null; // contador local de consecutivo para productos nuevos en el mismo movimiento
 
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
@@ -512,7 +513,7 @@ function verPDFById(id) { window.open(`/movimientos/pdf/${id}`, '_blank'); }
 
 // ─── MODAL NUEVO ───
 function abrirNuevoMovimiento() {
-  tipoSel  = null; itemsMov = []; pdfPath = null; pdfFile = null;
+  tipoSel  = null; itemsMov = []; pdfPath = null; pdfFile = null; proximoCodigo = null;
   document.getElementById('nm-doc').value = '';
   document.getElementById('nm-comentario').value = '';
   document.getElementById('prod-search').value = '';
@@ -615,21 +616,28 @@ function agregarProductoExistente(p) {
 function abrirNuevoProd(q) {
   document.getElementById('prod-dropdown').classList.remove('open');
   document.getElementById('np-nombre').value = q;
-  document.getElementById('np-codigo').value  = 'Cargando...';
   document.getElementById('np-referencia').value = '';
   document.getElementById('np-marca').value   = '';
   document.getElementById('np-grupo').value   = '';
   document.getElementById('nuevo-prod-form').classList.add('open');
   document.getElementById('prod-search').value = '';
-  // Cargar siguiente código consecutivo
-  fetch('/admin/siguiente_codigo')
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById('np-codigo').value = d.siguiente ?? '';
-    })
-    .catch(() => {
-      document.getElementById('np-codigo').value = '';
-    });
+
+  if (proximoCodigo !== null) {
+    // Ya tenemos el consecutivo base — usamos el contador local
+    document.getElementById('np-codigo').value = proximoCodigo;
+  } else {
+    // Primera vez en este movimiento — consultamos la BD
+    document.getElementById('np-codigo').value = 'Cargando...';
+    fetch('/admin/siguiente_codigo')
+      .then(r => r.json())
+      .then(d => {
+        proximoCodigo = d.siguiente ?? 1;
+        document.getElementById('np-codigo').value = proximoCodigo;
+      })
+      .catch(() => {
+        document.getElementById('np-codigo').value = '';
+      });
+  }
 }
 function cerrarNuevoProd() {
   document.getElementById('nuevo-prod-form').classList.remove('open');
@@ -649,6 +657,8 @@ function agregarProductoNuevo() {
       marca:      document.getElementById('np-marca').value.trim()
     }
   });
+  // Incrementar contador local para el siguiente producto nuevo
+  if (proximoCodigo !== null) proximoCodigo++;
   cerrarNuevoProd();
   renderItems();
   showToast(`✓ "${nombre}" agregado (se creará en inventario)`);
@@ -828,6 +838,12 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 
