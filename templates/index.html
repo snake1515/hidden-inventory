@@ -97,6 +97,9 @@
   <div class="user-info">
     {% if puede_editar_bodega %}<span class="badge badge-on">BODEGA ✓</span>{% endif %}
     {% if puede_editar_almacen %}<span class="badge badge-on">ALMACÉN ✓</span>{% endif %}
+    {% if puede_ver_movimientos %}
+    <a class="btn-logout" href="/movimientos" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Movimientos</a>
+    {% endif %}
     <span>Usuario: <strong>{{ usuario }}</strong></span>
     <a class="btn-logout" href="/logout">Salir</a>
   </div>
@@ -299,3 +302,4 @@ function showToast(msg, isError=false) {
 </script>
 </body>
 </html>
+
