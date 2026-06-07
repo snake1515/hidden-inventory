@@ -628,9 +628,9 @@ def siguiente_codigo():
     try:
         with engine.connect() as conn:
             row = conn.execute(text("""
-                SELECT MAX(codigo::integer) as max_cod
+                SELECT MAX(codigo) as max_cod
                 FROM inventario
-                WHERE codigo ~ '^[0-9]+$'
+                WHERE codigo IS NOT NULL
             """)).fetchone()
             max_cod = row.max_cod if row and row.max_cod else 0
         return jsonify({'siguiente': max_cod + 1})
@@ -900,6 +900,14 @@ def movimientos_revertir(mov_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
 
 
 
