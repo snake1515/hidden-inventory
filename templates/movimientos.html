@@ -326,7 +326,7 @@
       Agregar productos
     </div>
     <div class="prod-search-wrap" style="margin-bottom:14px">
-      <input type="text" id="prod-search" placeholder="Buscar por nombre, código, referencia, marca..."
+      <input type="text" id="prod-search" placeholder="Ej: GUAYA AKT125 — busca por cualquier palabra del nombre, código, referencia o marca"
              autocomplete="off" oninput="buscarProductosDebounce()" onfocus="buscarProductosDebounce()"/>
       <div class="prod-dropdown" id="prod-dropdown"></div>
     </div>
@@ -386,6 +386,7 @@
 
 <script>
 // ─── Estado global ───
+const ES_ADMIN  = {{ 'true' if es_admin else 'false' }};
 let tipoSel     = null;
 let itemsMov    = [];   // [{codigo, nombre, cantidad, origen, destino, es_nuevo, datos_nuevos}]
 let pdfPath     = null; // path en Supabase una vez subido
@@ -443,6 +444,11 @@ function renderTablaMovimientos(data) {
     const pdf   = m.tiene_pdf
       ? `<button class="btn-icon" onclick="event.stopPropagation();verPDFById(${m.id})" title="Ver PDF">📄</button>`
       : '<span style="color:var(--muted);font-size:12px">—</span>';
+    const acciones = ES_ADMIN
+      ? `<button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})" title="Ver detalle">Ver</button>
+         <button class="btn-icon btn-sm" style="border-color:var(--warning);color:var(--warning)" onclick="event.stopPropagation();confirmarRevertir(${m.id})" title="Revertir movimiento">↩ Revertir</button>
+         <button class="btn-icon btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="event.stopPropagation();confirmarEliminar(${m.id})" title="Eliminar movimiento">🗑 Eliminar</button>`
+      : `<button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button>`;
     return `<tr onclick="abrirDetalle(${m.id})">
       <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">#${m.id}</td>
       <td><span class="badge-tipo badge-${m.tipo}">${m.tipo}</span></td>
@@ -452,7 +458,7 @@ function renderTablaMovimientos(data) {
       <td style="font-family:'Space Mono',monospace;font-size:12px">${m.total_unidades ?? 0}</td>
       <td>${doc}</td>
       <td>${pdf}</td>
-      <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">${acciones}</td>
     </tr>`;
   }).join('');
 }
@@ -777,6 +783,28 @@ async function guardarMovimiento() {
   }
 }
 
+// ─── REVERTIR / ELIMINAR (solo admin) ───
+function confirmarRevertir(id) {
+  if (!confirm(`¿Revertir movimiento #${id}?\n\nEsto deshará el efecto en las existencias. El movimiento quedará marcado como REVERTIDO en el historial.`)) return;
+  fetch(`/movimientos/revertir/${id}`, {method: 'POST'})
+    .then(r => r.json())
+    .then(rj => {
+      if (rj.success) { showToast(`✓ Movimiento #${id} revertido`); cargarMovimientos(); }
+      else showToast('Error: ' + rj.error, true);
+    })
+    .catch(() => showToast('Error de conexión', true));
+}
+function confirmarEliminar(id) {
+  if (!confirm(`¿ELIMINAR movimiento #${id}?\n\nEsta acción NO ajusta existencias y no se puede deshacer.`)) return;
+  fetch(`/movimientos/eliminar/${id}`, {method: 'POST'})
+    .then(r => r.json())
+    .then(rj => {
+      if (rj.success) { showToast(`✓ Movimiento #${id} eliminado`); cargarMovimientos(); }
+      else showToast('Error: ' + rj.error, true);
+    })
+    .catch(() => showToast('Error de conexión', true));
+}
+
 // ─── TOAST ───
 function showToast(msg, isError=false) {
   const t = document.getElementById('toast');
@@ -792,3 +820,4 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
