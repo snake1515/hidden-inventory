@@ -796,6 +796,90 @@ def carga_csv_referencias_lote():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/movimientos/eliminar/<int:mov_id>', methods=['POST'])
+@movimientos_required
+def movimientos_eliminar(mov_id):
+    if not session.get('admin'):
+        return jsonify({'success': False, 'error': 'Solo el administrador puede eliminar movimientos'}), 403
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("DELETE FROM movimiento_items WHERE movimiento_id = :id"), {"id": mov_id})
+            conn.execute(text("DELETE FROM movimientos WHERE id = :id"), {"id": mov_id})
+            conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/movimientos/revertir/<int:mov_id>', methods=['POST'])
+@movimientos_required
+def movimientos_revertir(mov_id):
+    if not session.get('admin'):
+        return jsonify({'success': False, 'error': 'Solo el administrador puede revertir movimientos'}), 403
+    try:
+        with engine.connect() as conn:
+            mov = conn.execute(text(
+                "SELECT tipo FROM movimientos WHERE id = :id"), {"id": mov_id}
+            ).fetchone()
+            if not mov:
+                return jsonify({'success': False, 'error': 'Movimiento no encontrado'}), 404
+
+            items = conn.execute(text("""
+                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino
+                FROM movimiento_items WHERE movimiento_id = :id
+            """), {"id": mov_id}).fetchall()
+
+            tipo    = mov.tipo
+            usuario = get_current_user()
+            fecha   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            for item in items:
+                codigo   = item.producto_codigo
+                cantidad = item.cantidad
+                origen   = item.ubicacion_origen
+                destino  = item.ubicacion_destino
+
+                if tipo == 'ingreso':
+                    col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
+                    conn.execute(text(f"""
+                        UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
+                            ultima_mod_cantidad = :f, modificado_por = :u
+                        WHERE codigo = :cod
+                    """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+
+                elif tipo == 'egreso':
+                    col = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
+                    conn.execute(text(f"""
+                        UPDATE inventario SET {col} = {col} + :c,
+                            ultima_mod_cantidad = :f, modificado_por = :u
+                        WHERE codigo = :cod
+                    """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+
+                elif tipo == 'traslado':
+                    col_out = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
+                    col_in  = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
+                    if col_out != col_in:
+                        conn.execute(text(f"""
+                            UPDATE inventario
+                            SET {col_out} = GREATEST({col_out} - :c, 0),
+                                {col_in}  = {col_in} + :c,
+                                ultima_mod_cantidad = :f, modificado_por = :u
+                            WHERE codigo = :cod
+                        """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+
+            conn.execute(text("""
+                UPDATE movimientos
+                SET comentario = COALESCE(comentario || ' | ', '') || 'REVERTIDO por ' || :u || ' el ' || :f
+                WHERE id = :id
+            """), {"u": usuario, "f": fecha, "id": mov_id})
+            conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
 
