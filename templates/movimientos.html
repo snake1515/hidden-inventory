@@ -753,33 +753,19 @@ async function guardarMovimiento() {
       else { showToast('Error subiendo PDF: ' + rj.error, true); btn.disabled=false; btn.textContent='Guardar movimiento'; return; }
     }
 
-    // 2. Crear productos nuevos si los hay
-    const nuevos = itemsMov.filter(i => i.es_nuevo);
-    for (const item of nuevos) {
-      const r  = await fetch('/admin/agregar_item', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({...item.datos_nuevos, existencias_bodega:0, existencias_almacen:0})
-      });
-      const rj = await r.json();
-      if (!rj.success && !rj.error?.includes('duplicate')) {
-        showToast(`Error creando "${item.nombre}": ` + rj.error, true);
-        btn.disabled=false; btn.textContent='Guardar movimiento'; return;
-      }
-      item.es_nuevo = false; // ya fue creado
-    }
-
-    // 3. Guardar movimiento
+    // 2. Guardar movimiento (el backend crea los productos nuevos internamente)
     const payload = {
       tipo:       tipoSel,
       documento:  document.getElementById('nm-doc').value.trim(),
       comentario: document.getElementById('nm-comentario').value.trim(),
       pdf_path:   pdfPath,
       items: itemsMov.map(i => ({
-        codigo:   i.codigo,
-        nombre:   i.nombre,
-        cantidad: i.cantidad,
-        origen:   i.origen  || null,
-        destino:  i.destino || null,
+        codigo:      i.codigo,
+        nombre:      i.nombre,
+        cantidad:    i.cantidad,
+        origen:      i.origen  || null,
+        destino:     i.destino || null,
+        datos_nuevos: i.es_nuevo ? i.datos_nuevos : null
       }))
     };
     const r  = await fetch('/movimientos/crear', {
@@ -838,6 +824,19 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
