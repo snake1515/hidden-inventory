@@ -293,7 +293,10 @@ def descargar():
 def movimientos():
     return render_template('movimientos.html',
         usuario=get_current_user(),
-        es_admin=session.get('admin', False))
+        es_admin=session.get('admin', False),
+        supabase_url=SUPABASE_URL or '',
+        supabase_key=SUPABASE_KEY or '',
+        storage_bucket=STORAGE_BUCKET)
 
 @app.route('/movimientos/lista')
 @movimientos_required
@@ -931,6 +934,79 @@ def movimientos_revertir(mov_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
