@@ -386,7 +386,10 @@
 
 <script>
 // ─── Estado global ───
-const ES_ADMIN  = {{ 'true' if es_admin else 'false' }};
+const ES_ADMIN       = {{ 'true' if es_admin else 'false' }};
+const SUPABASE_URL   = "{{ supabase_url }}";
+const SUPABASE_KEY   = "{{ supabase_key }}";
+const STORAGE_BUCKET = "{{ storage_bucket }}";
 let tipoSel     = null;
 let itemsMov    = [];   // [{codigo, nombre, cantidad, origen, destino, es_nuevo, datos_nuevos}]
 let pdfPath     = null; // path en Supabase una vez subido
@@ -743,14 +746,35 @@ async function guardarMovimiento() {
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   try {
-    // 1. Subir PDF si hay uno pendiente
+    // 1. Subir PDF directo a Supabase si hay uno pendiente
     if (pdfFile && !pdfPath) {
-      const fd = new FormData();
-      fd.append('pdf', pdfFile);
-      const r  = await fetch('/movimientos/upload_pdf', {method:'POST', body: fd});
-      const rj = await r.json();
-      if (rj.success) { pdfPath = rj.path; }
-      else { showToast('Error subiendo PDF: ' + rj.error, true); btn.disabled=false; btn.textContent='Guardar movimiento'; return; }
+      try {
+        const ts       = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,15);
+        const filename = `${ts}_${pdfFile.name}`;
+        const yyyy     = new Date().getFullYear();
+        const mm       = String(new Date().getMonth()+1).padStart(2,'0');
+        const path     = `${yyyy}/${mm}/${filename}`;
+        const url      = `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`;
+        const r = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'apikey':        SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type':  'application/pdf'
+          },
+          body: pdfFile
+        });
+        if (r.status === 200 || r.status === 201) {
+          pdfPath = path;
+        } else {
+          const txt = await r.text();
+          showToast('Error subiendo PDF: ' + txt.slice(0,100), true);
+          btn.disabled=false; btn.textContent='Guardar movimiento'; return;
+        }
+      } catch(e) {
+        showToast('Error subiendo PDF: ' + e.message, true);
+        btn.disabled=false; btn.textContent='Guardar movimiento'; return;
+      }
     }
 
     // 2. Guardar movimiento (el backend crea los productos nuevos internamente)
@@ -824,6 +848,32 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
