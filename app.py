@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 import pandas as pd
 import os
+import io
 from datetime import datetime
 from sqlalchemy import create_engine, text
 import bcrypt
 import httpx
+from pdf_ingreso import generar_pdf_ingreso
 
 app = Flask(__name__)
 app.secret_key = "clave_secreta_inventario_2026"
@@ -78,20 +80,17 @@ def _storage_headers():
         "Authorization": f"Bearer {SUPABASE_KEY}",
     }
 
-def subir_pdf_supabase(file_bytes: bytes, filename: str) -> tuple:
-    """Sube un PDF al bucket. Devuelve (path, None) si ok, (None, error_msg) si falla."""
+def subir_pdf_supabase(file_bytes: bytes, filename: str) -> str | None:
+    """Sube un PDF al bucket y devuelve el path almacenado, o None si falla."""
     if not SUPABASE_URL or not SUPABASE_KEY:
-        return None, "SUPABASE_URL o SUPABASE_KEY no configurados"
+        return None
     path = f"{datetime.now().strftime('%Y/%m')}/{filename}"
     url  = f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{path}"
     headers = {**_storage_headers(), "Content-Type": "application/pdf"}
-    try:
-        r = httpx.put(url, content=file_bytes, headers=headers, timeout=30)
-        if r.status_code in (200, 201):
-            return path, None
-        return None, f"Supabase respondió {r.status_code}: {r.text[:300]}"
-    except Exception as e:
-        return None, f"Excepción httpx: {str(e)}"
+    r = httpx.put(url, content=file_bytes, headers=headers, timeout=30)
+    if r.status_code in (200, 201):
+        return path
+    return None
 
 def obtener_pdf_supabase(path: str) -> bytes | None:
     """Descarga un PDF del bucket y devuelve los bytes, o None si falla."""
@@ -293,10 +292,7 @@ def descargar():
 def movimientos():
     return render_template('movimientos.html',
         usuario=get_current_user(),
-        es_admin=session.get('admin', False),
-        supabase_url=SUPABASE_URL or '',
-        supabase_key=SUPABASE_KEY or '',
-        storage_bucket=STORAGE_BUCKET)
+        es_admin=session.get('admin', False))
 
 @app.route('/movimientos/lista')
 @movimientos_required
@@ -323,8 +319,9 @@ def movimientos_lista():
 
     where = ' AND '.join(conditions)
     sql = text(f"""
-        SELECT m.id, m.tipo, m.documento, m.comentario,
-               m.pdf_path, m.realizado_por, m.fecha,
+        SELECT m.id, m.tipo, m.consecutivo, m.documento, m.comentario,
+               m.pdf_path, m.pdf_generado, m.proveedor, m.numero_factura,
+               m.motivo_egreso, m.realizado_por, m.fecha,
                COUNT(mi.id) as num_items,
                SUM(mi.cantidad) as total_unidades
         FROM movimientos m
@@ -340,8 +337,10 @@ def movimientos_lista():
     for r in rows:
         d = dict(r._mapping)
         d['fecha'] = str(d['fecha'])
-        d['tiene_pdf'] = bool(d['pdf_path'])
-        d.pop('pdf_path', None)
+        d['tiene_pdf']     = bool(d.get('pdf_path'))
+        d['tiene_pdf_gen'] = bool(d.get('pdf_generado'))
+        d.pop('pdf_path',     None)
+        d.pop('pdf_generado', None)
         result.append(d)
     return jsonify(result)
 
@@ -350,7 +349,10 @@ def movimientos_lista():
 def movimiento_detalle(mov_id):
     with engine.connect() as conn:
         mov = conn.execute(text("""
-            SELECT id, tipo, documento, comentario, pdf_path, realizado_por, fecha
+            SELECT id, tipo, consecutivo, documento, comentario,
+                   pdf_path, pdf_generado,
+                   proveedor, numero_factura, fecha_documento, fecha_recepcion,
+                   motivo_egreso, realizado_por, fecha
             FROM movimientos WHERE id = :id
         """), {"id": mov_id}).fetchone()
         if not mov:
@@ -363,10 +365,29 @@ def movimiento_detalle(mov_id):
         """), {"id": mov_id}).fetchall()
     mov_d = dict(mov._mapping)
     mov_d['fecha'] = str(mov_d['fecha'])
-    mov_d['tiene_pdf'] = bool(mov_d['pdf_path'])
+    mov_d['tiene_pdf']     = bool(mov_d.get('pdf_path'))
+    mov_d['tiene_pdf_gen'] = bool(mov_d.get('pdf_generado'))
     mov_d.pop('pdf_path', None)
+    mov_d.pop('pdf_generado', None)
+    if mov_d.get('fecha_documento'):
+        mov_d['fecha_documento'] = str(mov_d['fecha_documento'])
+    if mov_d.get('fecha_recepcion'):
+        mov_d['fecha_recepcion'] = str(mov_d['fecha_recepcion'])
     mov_d['items'] = [dict(i._mapping) for i in items]
     return jsonify(mov_d)
+
+def _siguiente_consecutivo(conn, tipo: str) -> str:
+    """Obtiene y actualiza el consecutivo para el tipo dado. Debe llamarse dentro de una transacción."""
+    prefijos = {'ingreso': 'ING', 'egreso': 'EGR', 'traslado': 'TRL'}
+    prefijo  = prefijos.get(tipo, 'MOV')
+    result = conn.execute(text("""
+        UPDATE movimientos_consecutivos SET ultimo = ultimo + 1
+        WHERE tipo = :tipo RETURNING ultimo
+    """), {"tipo": tipo})
+    row = result.fetchone()
+    numero = row.ultimo if row else 1
+    return f"{prefijo}-{numero:04d}"
+
 
 @app.route('/movimientos/crear', methods=['POST'])
 @movimientos_required
@@ -380,72 +401,66 @@ def movimientos_crear():
     if not items:
         return jsonify({'success': False, 'error': 'Sin productos'}), 400
 
+    ahora     = datetime.now()
+    fecha_str = ahora.strftime("%Y-%m-%d %H:%M:%S")
+    fecha_pdf = ahora.strftime("%d/%m/%Y %I:%M %p")
+
     try:
         with engine.connect() as conn:
+            # Consecutivo
+            consecutivo = _siguiente_consecutivo(conn, tipo)
+
             # Insertar cabecera
             row = conn.execute(text("""
-                INSERT INTO movimientos (tipo, documento, comentario, pdf_path, realizado_por, fecha)
-                VALUES (:tipo, :doc, :com, :pdf, :usuario, NOW())
+                INSERT INTO movimientos
+                    (tipo, consecutivo, documento, comentario, pdf_path,
+                     proveedor, numero_factura, fecha_documento, fecha_recepcion,
+                     motivo_egreso, realizado_por, fecha)
+                VALUES
+                    (:tipo, :consec, :doc, :com, :pdf,
+                     :prov, :nfac, :fdoc, :frec,
+                     :motivo, :usuario, NOW())
                 RETURNING id
             """), {
-                "tipo": tipo,
-                "doc":  data.get('documento', '').strip() or None,
-                "com":  data.get('comentario', '').strip() or None,
-                "pdf":  data.get('pdf_path') or None,
+                "tipo":   tipo,
+                "consec": consecutivo,
+                "doc":    data.get('documento', '').strip() or None,
+                "com":    data.get('comentario', '').strip() or None,
+                "pdf":    data.get('pdf_path') or None,
+                "prov":   data.get('proveedor', '').strip() or None,
+                "nfac":   data.get('numero_factura', '').strip() or None,
+                "fdoc":   data.get('fecha_documento') or None,
+                "frec":   data.get('fecha_recepcion') or None,
+                "motivo": data.get('motivo_egreso', '').strip() or None,
                 "usuario": usuario
             })
             mov_id = row.fetchone().id
 
             # Insertar items y ajustar existencias
-            fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             for item in items:
                 codigo   = str(item['codigo']).strip()
                 nombre   = str(item['nombre']).strip()
                 cantidad = int(item['cantidad'])
-                origen   = item.get('origen')   # 'bodega' | 'almacen' | None
-                destino  = item.get('destino')  # 'bodega' | 'almacen' | None
-                datos_nuevos = item.get('datos_nuevos')  # solo si es producto nuevo
-
-                # Si viene con datos_nuevos, crear el producto en inventario primero
-                es_nuevo = False
-                if datos_nuevos:
-                    existe = conn.execute(text(
-                        "SELECT 1 FROM inventario WHERE codigo = :cod"
-                    ), {"cod": codigo}).fetchone()
-                    if not existe:
-                        es_nuevo = True
-                        grupo     = str(datos_nuevos.get('grupo', '')).strip()
-                        referencia = str(datos_nuevos.get('referencia', '') or '').strip()
-                        marca      = str(datos_nuevos.get('marca', '') or '').strip()
-                        conn.execute(text("""
-                            INSERT INTO inventario (codigo, nombre, referencia, marca, grupo,
-                                existencias_bodega, existencias_almacen,
-                                ultima_mod_cantidad, ultima_mod_nombre, modificado_por)
-                            VALUES (:codigo, :nombre, :ref, :marca, :grupo, 0, 0, :fecha, :usuario, :usuario)
-                        """), {
-                            "codigo": codigo, "nombre": nombre, "ref": referencia,
-                            "marca": marca, "grupo": grupo, "fecha": fecha, "usuario": usuario
-                        })
+                origen   = item.get('origen')
+                destino  = item.get('destino')
 
                 conn.execute(text("""
                     INSERT INTO movimiento_items
                         (movimiento_id, producto_codigo, producto_nombre, cantidad,
-                         ubicacion_origen, ubicacion_destino, es_nuevo)
-                    VALUES (:mid, :cod, :nom, :cant, :orig, :dest, :es_nuevo)
+                         ubicacion_origen, ubicacion_destino)
+                    VALUES (:mid, :cod, :nom, :cant, :orig, :dest)
                 """), {
                     "mid": mov_id, "cod": codigo, "nom": nombre,
-                    "cant": cantidad, "orig": origen, "dest": destino,
-                    "es_nuevo": es_nuevo
+                    "cant": cantidad, "orig": origen, "dest": destino
                 })
 
-                # Ajustar existencias según tipo
                 if tipo == 'ingreso':
                     col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
                     conn.execute(text(f"""
                         UPDATE inventario SET {col} = {col} + :c,
                             ultima_mod_cantidad = :f, modificado_por = :u
                         WHERE codigo = :cod
-                    """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+                    """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
 
                 elif tipo == 'egreso':
                     col = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
@@ -453,7 +468,7 @@ def movimientos_crear():
                         UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
                             ultima_mod_cantidad = :f, modificado_por = :u
                         WHERE codigo = :cod
-                    """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+                    """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
 
                 elif tipo == 'traslado':
                     col_out = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
@@ -465,10 +480,43 @@ def movimientos_crear():
                                 {col_in}  = {col_in} + :c,
                                 ultima_mod_cantidad = :f, modificado_por = :u
                             WHERE codigo = :cod
-                        """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
+                        """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
+
+            # ── Generar PDF para ingresos ──────────────────────────────────
+            pdf_generado_path = None
+            if tipo == 'ingreso':
+                try:
+                    pdf_bytes = generar_pdf_ingreso({
+                        "consecutivo":     consecutivo,
+                        "proveedor":       data.get('proveedor', ''),
+                        "numero_factura":  data.get('numero_factura', ''),
+                        "fecha_documento": data.get('fecha_documento'),
+                        "fecha_recepcion": data.get('fecha_recepcion'),
+                        "documento_soporte": data.get('documento', ''),
+                        "comentario":      data.get('comentario', ''),
+                        "realizado_por":   usuario,
+                        "fecha_registro":  fecha_pdf,
+                        "items":           items,
+                    })
+                    filename = f"{consecutivo}.pdf"
+                    pdf_generado_path = subir_pdf_supabase(pdf_bytes, filename)
+                    if pdf_generado_path:
+                        conn.execute(text("""
+                            UPDATE movimientos SET pdf_generado = :p WHERE id = :id
+                        """), {"p": pdf_generado_path, "id": mov_id})
+                except Exception as pdf_err:
+                    # No falla el movimiento si el PDF falla
+                    print(f"[PDF] Error generando PDF: {pdf_err}")
 
             conn.commit()
-        return jsonify({'success': True, 'id': mov_id})
+
+        return jsonify({
+            'success':      True,
+            'id':           mov_id,
+            'consecutivo':  consecutivo,
+            'tiene_pdf_gen': bool(pdf_generado_path)
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -482,10 +530,10 @@ def movimientos_upload_pdf():
         return jsonify({'success': False, 'error': 'Solo PDF'}), 400
     ts       = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{ts}_{f.filename}"
-    path, err = subir_pdf_supabase(f.read(), filename)
+    path     = subir_pdf_supabase(f.read(), filename)
     if path:
         return jsonify({'success': True, 'path': path})
-    return jsonify({'success': False, 'error': err or 'Error desconocido subiendo PDF'}), 500
+    return jsonify({'success': False, 'error': 'Error subiendo PDF. Verifica SUPABASE_URL y SUPABASE_KEY.'}), 500
 
 @app.route('/movimientos/pdf/<int:mov_id>')
 @movimientos_required
@@ -502,6 +550,22 @@ def movimientos_pdf(mov_id):
     import io
     return send_file(io.BytesIO(data), mimetype='application/pdf',
                      download_name=f"soporte_mov_{mov_id}.pdf")
+
+@app.route('/movimientos/pdf_generado/<int:mov_id>')
+@movimientos_required
+def movimientos_pdf_generado(mov_id):
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("SELECT pdf_generado, consecutivo FROM movimientos WHERE id = :id"), {"id": mov_id}
+        ).fetchone()
+    if not row or not row.pdf_generado:
+        return "Sin PDF generado", 404
+    data = obtener_pdf_supabase(row.pdf_generado)
+    if not data:
+        return "Error descargando PDF", 500
+    nombre = f"{row.consecutivo or 'ingreso'}.pdf"
+    return send_file(io.BytesIO(data), mimetype='application/pdf', download_name=nombre)
+
 
 @app.route('/movimientos/buscar_productos')
 @movimientos_required
@@ -646,23 +710,6 @@ def purgar_inventario():
         return jsonify({'success': True, 'eliminados': result.rowcount})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/admin/siguiente_codigo')
-def siguiente_codigo():
-    if not session.get('admin') and not session.get('usuario_id'):
-        return jsonify({'error': 'No autorizado'}), 403
-    try:
-        with engine.connect() as conn:
-            row = conn.execute(text("""
-                SELECT MAX(codigo) as max_cod
-                FROM inventario
-                WHERE codigo IS NOT NULL
-            """)).fetchone()
-            max_cod = row.max_cod if row and row.max_cod else 0
-        return jsonify({'siguiente': max_cod + 1})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 
 @app.route('/admin/agregar_item', methods=['POST'])
 def agregar_item():
@@ -842,98 +889,9 @@ def carga_csv_referencias_lote():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/movimientos/eliminar/<int:mov_id>', methods=['POST'])
-@movimientos_required
-def movimientos_eliminar(mov_id):
-    if not session.get('admin'):
-        return jsonify({'success': False, 'error': 'Solo el administrador puede eliminar movimientos'}), 403
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("DELETE FROM movimiento_items WHERE movimiento_id = :id"), {"id": mov_id})
-            conn.execute(text("DELETE FROM movimientos WHERE id = :id"), {"id": mov_id})
-            conn.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@app.route('/movimientos/revertir/<int:mov_id>', methods=['POST'])
-@movimientos_required
-def movimientos_revertir(mov_id):
-    if not session.get('admin'):
-        return jsonify({'success': False, 'error': 'Solo el administrador puede revertir movimientos'}), 403
-    try:
-        with engine.connect() as conn:
-            mov = conn.execute(text(
-                "SELECT tipo FROM movimientos WHERE id = :id"), {"id": mov_id}
-            ).fetchone()
-            if not mov:
-                return jsonify({'success': False, 'error': 'Movimiento no encontrado'}), 404
-
-            items = conn.execute(text("""
-                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino,
-                       COALESCE(es_nuevo, false) as es_nuevo
-                FROM movimiento_items WHERE movimiento_id = :id
-            """), {"id": mov_id}).fetchall()
-
-            tipo    = mov.tipo
-            usuario = get_current_user()
-            fecha   = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            for item in items:
-                codigo   = item.producto_codigo
-                cantidad = item.cantidad
-                origen   = item.ubicacion_origen
-                destino  = item.ubicacion_destino
-                es_nuevo = item.es_nuevo
-
-                if tipo == 'ingreso':
-                    if es_nuevo:
-                        # Producto creado en este movimiento → eliminarlo del inventario
-                        conn.execute(text(
-                            "DELETE FROM inventario WHERE codigo = :cod"
-                        ), {"cod": codigo})
-                    else:
-                        col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
-                        conn.execute(text(f"""
-                            UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
-                                ultima_mod_cantidad = :f, modificado_por = :u
-                            WHERE codigo = :cod
-                        """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
-
-                elif tipo == 'egreso':
-                    col = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
-                    conn.execute(text(f"""
-                        UPDATE inventario SET {col} = {col} + :c,
-                            ultima_mod_cantidad = :f, modificado_por = :u
-                        WHERE codigo = :cod
-                    """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
-
-                elif tipo == 'traslado':
-                    col_out = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
-                    col_in  = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
-                    if col_out != col_in:
-                        conn.execute(text(f"""
-                            UPDATE inventario
-                            SET {col_out} = GREATEST({col_out} - :c, 0),
-                                {col_in}  = {col_in} + :c,
-                                ultima_mod_cantidad = :f, modificado_por = :u
-                            WHERE codigo = :cod
-                        """), {"c": cantidad, "f": fecha, "u": usuario, "cod": codigo})
-
-            conn.execute(text("""
-                UPDATE movimientos
-                SET comentario = COALESCE(comentario || ' | ', '') || 'REVERTIDO por ' || :u || ' el ' || :f
-                WHERE id = :id
-            """), {"u": usuario, "f": fecha, "id": mov_id})
-            conn.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
