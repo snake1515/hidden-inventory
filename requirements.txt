@@ -5,4 +5,5 @@ bcrypt
 openpyxl
 psycopg2-binary
 httpx
+reportlab
 gunicorn
