@@ -149,9 +149,13 @@
     color:var(--text); padding:5px 8px; font-size:13px; outline:none; border-radius:2px; text-align:center; }
   .item-row .ir-cant input:focus { border-color:var(--accent); }
   .item-row .ir-ubi { display:flex; gap:6px; flex-wrap:wrap; }
-  .ir-ubi select { background:var(--bg); border:1px solid var(--border); color:var(--text);
-    padding:5px 8px; font-size:12px; outline:none; border-radius:2px; font-family:'Space Mono',monospace; }
-  .ir-ubi select:focus { border-color:var(--accent); }
+  .ir-ubi-btns { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .ubi-btn { background:var(--surface); border:1px solid var(--border); color:var(--muted);
+    padding:4px 12px; font-size:11px; font-family:'Space Mono',monospace; letter-spacing:1px;
+    cursor:pointer; border-radius:20px; transition:all .15s; }
+  .ubi-btn:hover { border-color:var(--text); color:var(--text); }
+  .ubi-btn-bodega  { background:rgba(58,122,255,.12); border-color:rgba(58,122,255,.5); color:#6aa3ff; }
+  .ubi-btn-almacen { background:rgba(58,255,160,.10); border-color:rgba(58,255,160,.4); color:var(--success); }
   .btn-remove-item { background:none; border:none; color:var(--muted); font-size:18px;
     cursor:pointer; line-height:1; padding:0 4px; }
   .btn-remove-item:hover { color:var(--danger); }
@@ -206,7 +210,7 @@
   <div class="hlinks">
     <span class="usuario-tag">{{ usuario }}</span>
     <a href="/">← Inventario</a>
-    {% if es_admin %}<a href="/admin" style="border-color:rgba(58,255,160,.3);color:var(--success)">⚙ Panel Admin</a>{% endif %}
+    {% if es_admin %}<a href="/admin/panel">Admin</a>{% endif %}
     <a href="/logout">Salir</a>
   </div>
 </header>
@@ -255,19 +259,20 @@
     <table>
       <thead>
         <tr>
-          <th>#</th>
+          <th>Consecutivo</th>
           <th>Tipo</th>
           <th>Fecha</th>
           <th>Realizado por</th>
-          <th>Productos</th>
-          <th>Unidades</th>
-          <th>Documento</th>
-          <th>PDF</th>
+          <th>Proveedor / Info</th>
+          <th>Uds.</th>
+          <th>Doc. soporte</th>
+          <th>PDF soporte</th>
+          <th>PDF comprobante</th>
           <th>Acciones</th>
         </tr>
       </thead>
       <tbody id="tbody-mov">
-        <tr><td colspan="9" class="empty"><span class="spinner"></span></td></tr>
+        <tr><td colspan="10" class="empty"><span class="spinner"></span></td></tr>
       </tbody>
     </table>
   </div>
@@ -289,13 +294,67 @@
       <div class="tipo-btn" id="tbtn-traslado" onclick="selTipo('traslado')">⇄ Traslado</div>
     </div>
 
-    <!-- Documento y comentario -->
+    <!-- Campos específicos de INGRESO -->
+    <div id="campos-ingreso" style="display:none">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Proveedor</label>
+          <input type="text" id="nm-proveedor" placeholder="Nombre del proveedor..."/>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>N° Factura / Remisión</label>
+          <input type="text" id="nm-factura" placeholder="FAC-2024-00871"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fecha del documento (opcional)</label>
+          <input type="date" id="nm-fecha-doc"/>
+        </div>
+        <div class="form-group">
+          <label>Fecha de recepción (opcional)</label>
+          <input type="date" id="nm-fecha-rec"/>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Documento soporte (opcional)</label>
+          <input type="text" id="nm-doc" placeholder="Número o referencia del doc. físico..."/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campos para EGRESO -->
+    <div id="campos-egreso" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Motivo del egreso</label>
+          <select id="nm-motivo">
+            <option value="">— Seleccionar —</option>
+            <option value="Venta a cliente">Venta a cliente</option>
+            <option value="Devolución a proveedor">Devolución a proveedor</option>
+            <option value="Baja / daño">Baja / daño</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Documento soporte (opcional)</label>
+          <input type="text" id="nm-doc-egreso" placeholder="Remisión, factura, acta..."/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campos para TRASLADO -->
+    <div id="campos-traslado" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Documento soporte (opcional)</label>
+          <input type="text" id="nm-doc-otros" placeholder="Orden interna, acta..."/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comentario (siempre visible) -->
     <div class="form-row">
       <div class="form-group">
-        <label>Documento soporte (opcional)</label>
-        <input type="text" id="nm-doc" placeholder="FAC-001, REM-456, ..."/>
-      </div>
-      <div class="form-group" style="flex:2">
         <label>Comentario (opcional)</label>
         <input type="text" id="nm-comentario" placeholder="Nota adicional..."/>
       </div>
@@ -326,7 +385,7 @@
       Agregar productos
     </div>
     <div class="prod-search-wrap" style="margin-bottom:14px">
-      <input type="text" id="prod-search" placeholder="Ej: GUAYA AKT125 — busca por cualquier palabra del nombre, código, referencia o marca"
+      <input type="text" id="prod-search" placeholder="Buscar por nombre, código, referencia, marca..."
              autocomplete="off" oninput="buscarProductosDebounce()" onfocus="buscarProductosDebounce()"/>
       <div class="prod-dropdown" id="prod-dropdown"></div>
     </div>
@@ -376,7 +435,10 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarDetalle()">Cerrar</button>
       <button class="btn btn-secondary" id="btn-ver-pdf" style="display:none" onclick="verPDF()">
-        📄 Ver PDF
+        📎 Ver doc. soporte
+      </button>
+      <button class="btn btn-primary" id="btn-ver-pdf-gen" style="display:none" onclick="verPDFGen()">
+        📄 Ver comprobante
       </button>
     </div>
   </div>
@@ -386,17 +448,12 @@
 
 <script>
 // ─── Estado global ───
-const ES_ADMIN       = {{ 'true' if es_admin else 'false' }};
-const SUPABASE_URL   = "{{ supabase_url }}";
-const SUPABASE_KEY   = "{{ supabase_key }}";
-const STORAGE_BUCKET = "{{ storage_bucket }}";
 let tipoSel     = null;
 let itemsMov    = [];   // [{codigo, nombre, cantidad, origen, destino, es_nuevo, datos_nuevos}]
 let pdfPath     = null; // path en Supabase una vez subido
 let pdfFile     = null; // File object pendiente de subir
 let debounceTimer, debounceMovTimer;
 let detMovId    = null;
-let proximoCodigo = null; // contador local de consecutivo para productos nuevos en el mismo movimiento
 
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
@@ -439,30 +496,39 @@ function cargarMovimientos() {
 function renderTablaMovimientos(data) {
   const tbody = document.getElementById('tbody-mov');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin movimientos registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">Sin movimientos registrados</td></tr>';
     return;
   }
   tbody.innerHTML = data.map(m => {
-    const fecha = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
-    const doc   = m.documento ? `<span style="font-family:'Space Mono',monospace;font-size:11px">${m.documento}</span>` : '—';
-    const pdf   = m.tiene_pdf
-      ? `<button class="btn-icon" onclick="event.stopPropagation();verPDFById(${m.id})" title="Ver PDF">📄</button>`
-      : '<span style="color:var(--muted);font-size:12px">—</span>';
-    const acciones = ES_ADMIN
-      ? `<button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})" title="Ver detalle">Ver</button>
-         <button class="btn-icon btn-sm" style="border-color:var(--warning);color:var(--warning)" onclick="event.stopPropagation();confirmarRevertir(${m.id})" title="Revertir movimiento">↩ Revertir</button>
-         <button class="btn-icon btn-sm" style="border-color:var(--danger);color:var(--danger)" onclick="event.stopPropagation();confirmarEliminar(${m.id})" title="Eliminar movimiento">🗑 Eliminar</button>`
-      : `<button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button>`;
+    const fecha  = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
+    const consec = m.consecutivo
+      ? `<span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--accent)">${m.consecutivo}</span>`
+      : `<span style="color:var(--muted);font-size:11px">#${m.id}</span>`;
+    const doc    = m.documento ? `<span style="font-family:'Space Mono',monospace;font-size:11px">${m.documento}</span>` : '—';
+    const prov   = m.tipo === 'ingreso' && m.proveedor
+      ? `<div style="font-size:12px">${m.proveedor}</div>
+         ${m.numero_factura ? `<div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">${m.numero_factura}</div>` : ''}`
+      : m.tipo === 'egreso' && m.motivo_egreso
+      ? `<span style="font-size:11px;color:var(--muted)">${m.motivo_egreso}</span>`
+      : `<span style="color:var(--muted);font-size:12px">${m.num_items} producto(s)</span>`;
+    const pdfSop = m.tiene_pdf
+      ? `<button class="btn-icon" onclick="event.stopPropagation();verPDFById(${m.id})" title="Ver PDF soporte">📎</button>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+    const pdfGen = m.tiene_pdf_gen
+      ? `<button class="btn-icon" onclick="event.stopPropagation();verPDFGenerado(${m.id})" title="Ver comprobante">📄</button>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+
     return `<tr onclick="abrirDetalle(${m.id})">
-      <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">#${m.id}</td>
+      <td>${consec}</td>
       <td><span class="badge-tipo badge-${m.tipo}">${m.tipo}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${fecha}</td>
+      <td style="font-size:12px;color:var(--muted);white-space:nowrap">${fecha}</td>
       <td style="font-family:'Space Mono',monospace;font-size:11px">${m.realizado_por}</td>
-      <td style="font-family:'Space Mono',monospace;font-size:12px">${m.num_items}</td>
-      <td style="font-family:'Space Mono',monospace;font-size:12px">${m.total_unidades ?? 0}</td>
+      <td>${prov}</td>
+      <td style="font-family:'Space Mono',monospace;font-size:12px;text-align:center">${m.total_unidades ?? 0}</td>
       <td>${doc}</td>
-      <td>${pdf}</td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">${acciones}</td>
+      <td style="text-align:center">${pdfSop}</td>
+      <td style="text-align:center">${pdfGen}</td>
+      <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button></td>
     </tr>`;
   }).join('');
 }
@@ -472,7 +538,8 @@ function abrirDetalle(id) {
   detMovId = id;
   document.getElementById('modal-detalle').classList.add('open');
   document.getElementById('det-contenido').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
-  document.getElementById('btn-ver-pdf').style.display = 'none';
+  document.getElementById('btn-ver-pdf').style.display     = 'none';
+  document.getElementById('btn-ver-pdf-gen').style.display = 'none';
   fetch(`/movimientos/detalle/${id}`)
     .then(r => r.json())
     .then(renderDetalle);
@@ -483,8 +550,29 @@ function cerrarDetalle() {
 }
 function renderDetalle(m) {
   if (m.error) { document.getElementById('det-contenido').innerHTML = `<p style="color:var(--danger)">${m.error}</p>`; return; }
-  if (m.tiene_pdf) document.getElementById('btn-ver-pdf').style.display = 'inline-flex';
+  if (m.tiene_pdf)     document.getElementById('btn-ver-pdf').style.display     = 'inline-flex';
+  if (m.tiene_pdf_gen) document.getElementById('btn-ver-pdf-gen').style.display = 'inline-flex';
+
   const fecha = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'medium', timeStyle:'medium'});
+
+  const fmtFecha = s => {
+    if (!s) return '—';
+    try { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('es-CO'); } catch { return s; }
+  };
+
+  // Filas extra para ingresos
+  let extraCabecera = '';
+  if (m.tipo === 'ingreso') {
+    extraCabecera = `
+      <div class="det-meta"><strong>Proveedor</strong>${m.proveedor || '—'}</div>
+      <div class="det-meta"><strong>N° Factura / Remisión</strong>${m.numero_factura || '—'}</div>
+      <div class="det-meta"><strong>Fecha documento</strong>${fmtFecha(m.fecha_documento)}</div>
+      <div class="det-meta"><strong>Fecha recepción</strong>${fmtFecha(m.fecha_recepcion)}</div>`;
+  } else if (m.tipo === 'egreso' && m.motivo_egreso) {
+    extraCabecera = `
+      <div class="det-meta"><strong>Motivo</strong>${m.motivo_egreso}</div>`;
+  }
+
   const items = m.items.map(i => {
     let ubi = '';
     if (i.ubicacion_origen && i.ubicacion_destino)
@@ -498,12 +586,19 @@ function renderDetalle(m) {
       <td style="font-size:12px;color:var(--muted)">${ubi}</td>
     </tr>`;
   }).join('');
+
+  const consecutivoTag = m.consecutivo
+    ? `<span style="font-family:'Space Mono',monospace;font-size:16px;color:var(--accent);font-weight:700">${m.consecutivo}</span>`
+    : '';
+
   document.getElementById('det-contenido').innerHTML = `
     <div class="det-header">
+      ${consecutivoTag}
       <span class="badge-tipo badge-${m.tipo}">${m.tipo}</span>
-      <div class="det-meta"><strong>#${m.id}</strong>${fecha}</div>
+      <div class="det-meta"><strong>Fecha registro</strong>${fecha}</div>
       <div class="det-meta"><strong>Realizado por</strong>${m.realizado_por}</div>
-      ${m.documento ? `<div class="det-meta"><strong>Documento</strong>${m.documento}</div>` : ''}
+      ${m.documento ? `<div class="det-meta"><strong>Doc. soporte</strong>${m.documento}</div>` : ''}
+      ${extraCabecera}
     </div>
     ${m.comentario ? `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px 16px;font-size:13px;color:var(--muted);margin-bottom:16px">💬 ${m.comentario}</div>` : ''}
     <table class="det-table">
@@ -511,14 +606,27 @@ function renderDetalle(m) {
       <tbody>${items}</tbody>
     </table>`;
 }
-function verPDF() { if (detMovId) window.open(`/movimientos/pdf/${detMovId}`, '_blank'); }
-function verPDFById(id) { window.open(`/movimientos/pdf/${id}`, '_blank'); }
+
+function verPDF()      { if (detMovId) window.open(`/movimientos/pdf/${detMovId}`, '_blank'); }
+function verPDFGen()   { if (detMovId) window.open(`/movimientos/pdf_generado/${detMovId}`, '_blank'); }
+function verPDFById(id)       { window.open(`/movimientos/pdf/${id}`, '_blank'); }
+function verPDFGenerado(id)   { window.open(`/movimientos/pdf_generado/${id}`, '_blank'); }
 
 // ─── MODAL NUEVO ───
 function abrirNuevoMovimiento() {
-  tipoSel  = null; itemsMov = []; pdfPath = null; pdfFile = null; proximoCodigo = null;
-  document.getElementById('nm-doc').value = '';
+  tipoSel  = null; itemsMov = []; pdfPath = null; pdfFile = null;
+  document.getElementById('nm-doc').value        = '';
+  document.getElementById('nm-doc-egreso').value = '';
+  document.getElementById('nm-doc-otros').value  = '';
   document.getElementById('nm-comentario').value = '';
+  document.getElementById('nm-proveedor').value  = '';
+  document.getElementById('nm-factura').value    = '';
+  document.getElementById('nm-fecha-doc').value  = '';
+  document.getElementById('nm-fecha-rec').value  = '';
+  document.getElementById('nm-motivo').value     = '';
+  document.getElementById('campos-ingreso').style.display  = 'none';
+  document.getElementById('campos-egreso').style.display   = 'none';
+  document.getElementById('campos-traslado').style.display = 'none';
   document.getElementById('prod-search').value = '';
   document.getElementById('prod-dropdown').classList.remove('open');
   limpiarPdf();
@@ -538,7 +646,10 @@ function selTipo(tipo) {
   ['ingreso','egreso','traslado'].forEach(t => {
     document.getElementById('tbtn-' + t).className = 'tipo-btn' + (t === tipo ? ' sel-' + tipo : '');
   });
-  renderItems(); // re-render para actualizar selects de ubicación
+  document.getElementById('campos-ingreso').style.display  = tipo === 'ingreso'  ? 'block' : 'none';
+  document.getElementById('campos-egreso').style.display   = tipo === 'egreso'   ? 'block' : 'none';
+  document.getElementById('campos-traslado').style.display = tipo === 'traslado' ? 'block' : 'none';
+  renderItems();
 }
 
 // ─── PDF ───
@@ -618,29 +729,14 @@ function agregarProductoExistente(p) {
 // ─── PRODUCTO NUEVO ───
 function abrirNuevoProd(q) {
   document.getElementById('prod-dropdown').classList.remove('open');
+  // Pre-rellenar nombre si q parece un nombre
   document.getElementById('np-nombre').value = q;
+  document.getElementById('np-codigo').value  = '';
   document.getElementById('np-referencia').value = '';
   document.getElementById('np-marca').value   = '';
   document.getElementById('np-grupo').value   = '';
   document.getElementById('nuevo-prod-form').classList.add('open');
   document.getElementById('prod-search').value = '';
-
-  if (proximoCodigo !== null) {
-    // Ya tenemos el consecutivo base — usamos el contador local
-    document.getElementById('np-codigo').value = proximoCodigo;
-  } else {
-    // Primera vez en este movimiento — consultamos la BD
-    document.getElementById('np-codigo').value = 'Cargando...';
-    fetch('/admin/siguiente_codigo')
-      .then(r => r.json())
-      .then(d => {
-        proximoCodigo = d.siguiente ?? 1;
-        document.getElementById('np-codigo').value = proximoCodigo;
-      })
-      .catch(() => {
-        document.getElementById('np-codigo').value = '';
-      });
-  }
 }
 function cerrarNuevoProd() {
   document.getElementById('nuevo-prod-form').classList.remove('open');
@@ -660,8 +756,6 @@ function agregarProductoNuevo() {
       marca:      document.getElementById('np-marca').value.trim()
     }
   });
-  // Incrementar contador local para el siguiente producto nuevo
-  if (proximoCodigo !== null) proximoCodigo++;
   cerrarNuevoProd();
   renderItems();
   showToast(`✓ "${nombre}" agregado (se creará en inventario)`);
@@ -671,8 +765,6 @@ function agregarProductoNuevo() {
 function renderItems() {
   const lista = document.getElementById('items-lista');
   document.getElementById('items-empty').style.display = itemsMov.length ? 'none' : 'block';
-
-  // Limpiar rows anteriores
   lista.querySelectorAll('.item-row').forEach(r => r.remove());
 
   itemsMov.forEach((item, idx) => {
@@ -680,36 +772,52 @@ function renderItems() {
     div.className = 'item-row';
     div.dataset.idx = idx;
 
-    // Selector ubicación según tipo
+    // ── Selector de ubicación ──────────────────────────────────────────────
     let ubiHtml = '';
     if (tipoSel === 'ingreso') {
-      ubiHtml = `<div class="ir-ubi">
-        <select onchange="itemsMov[${idx}].destino=this.value">
-          <option value="bodega" ${item.destino==='bodega'?'selected':''}>→ Bodega</option>
-          <option value="almacen" ${item.destino==='almacen'?'selected':''}>→ Almacén</option>
-        </select>
+      // Botones visuales Bodega / Almacén
+      const selB = item.destino === 'bodega';
+      const selA = item.destino === 'almacen';
+      ubiHtml = `<div class="ir-ubi-btns">
+        <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-right:4px">→</span>
+        <button class="ubi-btn ${selB ? 'ubi-btn-bodega' : ''}"
+          onclick="setDestino(${idx},'bodega')">Bodega</button>
+        <button class="ubi-btn ${selA ? 'ubi-btn-almacen' : ''}"
+          onclick="setDestino(${idx},'almacen')">Almacén</button>
       </div>`;
     } else if (tipoSel === 'egreso') {
-      ubiHtml = `<div class="ir-ubi">
-        <select onchange="itemsMov[${idx}].origen=this.value">
-          <option value="bodega" ${item.origen==='bodega'?'selected':''}>Bodega</option>
-          <option value="almacen" ${item.origen==='almacen'?'selected':''}>Almacén</option>
-        </select>
+      const selB = item.origen === 'bodega';
+      const selA = item.origen === 'almacen';
+      ubiHtml = `<div class="ir-ubi-btns">
+        <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-right:4px">←</span>
+        <button class="ubi-btn ${selB ? 'ubi-btn-bodega' : ''}"
+          onclick="setOrigen(${idx},'bodega')">Bodega</button>
+        <button class="ubi-btn ${selA ? 'ubi-btn-almacen' : ''}"
+          onclick="setOrigen(${idx},'almacen')">Almacén</button>
       </div>`;
     } else if (tipoSel === 'traslado') {
-      ubiHtml = `<div class="ir-ubi">
-        <select onchange="itemsMov[${idx}].origen=this.value">
-          <option value="bodega" ${item.origen==='bodega'?'selected':''}>Bodega</option>
-          <option value="almacen" ${item.origen==='almacen'?'selected':''}>Almacén</option>
-        </select>
-        <span style="color:var(--muted);font-size:12px">→</span>
-        <select onchange="itemsMov[${idx}].destino=this.value">
-          <option value="almacen" ${item.destino==='almacen'?'selected':''}>Almacén</option>
-          <option value="bodega" ${item.destino==='bodega'?'selected':''}>Bodega</option>
-        </select>
+      const oB = item.origen === 'bodega';
+      const oA = item.origen === 'almacen';
+      const dB = item.destino === 'bodega';
+      const dA = item.destino === 'almacen';
+      ubiHtml = `<div class="ir-ubi-btns" style="flex-direction:column;gap:4px;align-items:flex-start">
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;width:42px">Desde</span>
+          <button class="ubi-btn ${oB ? 'ubi-btn-bodega' : ''}"
+            onclick="setOrigen(${idx},'bodega')">Bodega</button>
+          <button class="ubi-btn ${oA ? 'ubi-btn-almacen' : ''}"
+            onclick="setOrigen(${idx},'almacen')">Almacén</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;width:42px">Hacia</span>
+          <button class="ubi-btn ${dB ? 'ubi-btn-bodega' : ''}"
+            onclick="setDestino(${idx},'bodega')">Bodega</button>
+          <button class="ubi-btn ${dA ? 'ubi-btn-almacen' : ''}"
+            onclick="setDestino(${idx},'almacen')">Almacén</button>
+        </div>
       </div>`;
     } else {
-      ubiHtml = `<span style="color:var(--muted);font-size:11px;font-family:'Space Mono',monospace">Selecciona tipo</span>`;
+      ubiHtml = `<span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace">Selecciona tipo</span>`;
     }
 
     const esNuevoTag = item.es_nuevo
@@ -732,8 +840,12 @@ function renderItems() {
   });
 }
 
-function quitarItem(idx) {
-  itemsMov.splice(idx, 1);
+function setDestino(idx, val) {
+  itemsMov[idx].destino = val;
+  renderItems();
+}
+function setOrigen(idx, val) {
+  itemsMov[idx].origen = val;
   renderItems();
 }
 
@@ -746,50 +858,52 @@ async function guardarMovimiento() {
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   try {
-    // 1. Subir PDF directo a Supabase si hay uno pendiente
+    // 1. Subir PDF si hay uno pendiente
     if (pdfFile && !pdfPath) {
-      try {
-        const ts       = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,15);
-        const filename = `${ts}_${pdfFile.name}`;
-        const yyyy     = new Date().getFullYear();
-        const mm       = String(new Date().getMonth()+1).padStart(2,'0');
-        const path     = `${yyyy}/${mm}/${filename}`;
-        const url      = `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`;
-        const r = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'apikey':        SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type':  'application/pdf'
-          },
-          body: pdfFile
-        });
-        if (r.status === 200 || r.status === 201) {
-          pdfPath = path;
-        } else {
-          const txt = await r.text();
-          showToast('Error subiendo PDF: ' + txt.slice(0,100), true);
-          btn.disabled=false; btn.textContent='Guardar movimiento'; return;
-        }
-      } catch(e) {
-        showToast('Error subiendo PDF: ' + e.message, true);
-        btn.disabled=false; btn.textContent='Guardar movimiento'; return;
-      }
+      const fd = new FormData();
+      fd.append('pdf', pdfFile);
+      const r  = await fetch('/movimientos/upload_pdf', {method:'POST', body: fd});
+      const rj = await r.json();
+      if (rj.success) { pdfPath = rj.path; }
+      else { showToast('Error subiendo PDF: ' + rj.error, true); btn.disabled=false; btn.textContent='Guardar movimiento'; return; }
     }
 
-    // 2. Guardar movimiento (el backend crea los productos nuevos internamente)
+    // 2. Crear productos nuevos si los hay
+    const nuevos = itemsMov.filter(i => i.es_nuevo);
+    for (const item of nuevos) {
+      const r  = await fetch('/admin/agregar_item', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({...item.datos_nuevos, existencias_bodega:0, existencias_almacen:0})
+      });
+      const rj = await r.json();
+      if (!rj.success && !rj.error?.includes('duplicate')) {
+        showToast(`Error creando "${item.nombre}": ` + rj.error, true);
+        btn.disabled=false; btn.textContent='Guardar movimiento'; return;
+      }
+      item.es_nuevo = false; // ya fue creado
+    }
+
+    // 3. Guardar movimiento
+    const docVal = tipoSel === 'ingreso'  ? document.getElementById('nm-doc').value.trim()
+                 : tipoSel === 'egreso'   ? document.getElementById('nm-doc-egreso').value.trim()
+                 : document.getElementById('nm-doc-otros').value.trim();
+
     const payload = {
-      tipo:       tipoSel,
-      documento:  document.getElementById('nm-doc').value.trim(),
-      comentario: document.getElementById('nm-comentario').value.trim(),
-      pdf_path:   pdfPath,
+      tipo:            tipoSel,
+      documento:       docVal,
+      comentario:      document.getElementById('nm-comentario').value.trim(),
+      pdf_path:        pdfPath,
+      motivo_egreso:   tipoSel === 'egreso' ? document.getElementById('nm-motivo').value : '',
+      proveedor:       tipoSel === 'ingreso' ? document.getElementById('nm-proveedor').value.trim() : '',
+      numero_factura:  tipoSel === 'ingreso' ? document.getElementById('nm-factura').value.trim()   : '',
+      fecha_documento: tipoSel === 'ingreso' ? document.getElementById('nm-fecha-doc').value || null : null,
+      fecha_recepcion: tipoSel === 'ingreso' ? document.getElementById('nm-fecha-rec').value || null : null,
       items: itemsMov.map(i => ({
-        codigo:      i.codigo,
-        nombre:      i.nombre,
-        cantidad:    i.cantidad,
-        origen:      i.origen  || null,
-        destino:     i.destino || null,
-        datos_nuevos: i.es_nuevo ? i.datos_nuevos : null
+        codigo:   i.codigo,
+        nombre:   i.nombre,
+        cantidad: i.cantidad,
+        origen:   i.origen  || null,
+        destino:  i.destino || null,
       }))
     };
     const r  = await fetch('/movimientos/crear', {
@@ -811,28 +925,6 @@ async function guardarMovimiento() {
   }
 }
 
-// ─── REVERTIR / ELIMINAR (solo admin) ───
-function confirmarRevertir(id) {
-  if (!confirm(`¿Revertir movimiento #${id}?\n\nEsto deshará el efecto en las existencias. El movimiento quedará marcado como REVERTIDO en el historial.`)) return;
-  fetch(`/movimientos/revertir/${id}`, {method: 'POST'})
-    .then(r => r.json())
-    .then(rj => {
-      if (rj.success) { showToast(`✓ Movimiento #${id} revertido`); cargarMovimientos(); }
-      else showToast('Error: ' + rj.error, true);
-    })
-    .catch(() => showToast('Error de conexión', true));
-}
-function confirmarEliminar(id) {
-  if (!confirm(`¿ELIMINAR movimiento #${id}?\n\nEsta acción NO ajusta existencias y no se puede deshacer.`)) return;
-  fetch(`/movimientos/eliminar/${id}`, {method: 'POST'})
-    .then(r => r.json())
-    .then(rj => {
-      if (rj.success) { showToast(`✓ Movimiento #${id} eliminado`); cargarMovimientos(); }
-      else showToast('Error: ' + rj.error, true);
-    })
-    .catch(() => showToast('Error de conexión', true));
-}
-
 // ─── TOAST ───
 function showToast(msg, isError=false) {
   const t = document.getElementById('toast');
@@ -848,55 +940,3 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
