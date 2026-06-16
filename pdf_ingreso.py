@@ -156,17 +156,20 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
     tabla_data = [thead]
 
     for n, item in enumerate(items, 1):
-        dest = (item.get("destino") or "bodega").lower()
+        dest = (str(item.get("destino") or "bodega")).lower()
         dest_color = "#1a6fb5" if dest == "bodega" else "#1a7a50"
         dest_label = "Bodega" if dest == "bodega" else "Almacén"
+        codigo  = str(item.get("codigo") or "")
+        nombre  = str(item.get("nombre") or "")
+        cantidad = str(item.get("cantidad") or 0)
         tabla_data.append([
             Paragraph(str(n), _estilo("td_num", alignment=TA_CENTER,
                                        textColor=GRIS_TEXTO, fontSize=9)),
-            Paragraph(item.get("codigo",""), _estilo("td_cod", fontSize=9,
-                                                       textColor=GRIS_TEXTO,
-                                                       fontName="Helvetica-Oblique")),
-            Paragraph(item.get("nombre",""),  _estilo("td_nom", fontSize=9)),
-            Paragraph(str(item.get("cantidad",0)),
+            Paragraph(codigo, _estilo("td_cod", fontSize=9,
+                                      textColor=GRIS_TEXTO,
+                                      fontName="Helvetica-Oblique")),
+            Paragraph(nombre,  _estilo("td_nom", fontSize=9)),
+            Paragraph(cantidad,
                       _estilo("td_cant", alignment=TA_CENTER, fontSize=10,
                                fontName="Helvetica-Bold")),
             Paragraph(f'<font color="{dest_color}"><b>{dest_label}</b></font>',
@@ -179,7 +182,7 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
         Paragraph("", _estilo("x")),
         Paragraph('<font size="9" color="#888888"><b>TOTAL UNIDADES</b></font>',
                   _estilo("tot_lbl", alignment=TA_RIGHT)),
-        Paragraph(f'<b>{total_uds}</b>', _estilo("tot_val", alignment=TA_CENTER,
+        Paragraph(f'<b>{str(total_uds)}</b>', _estilo("tot_val", alignment=TA_CENTER,
                                                    fontSize=11, fontName="Helvetica-Bold")),
         Paragraph("", _estilo("x")),
     ])
@@ -248,4 +251,3 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
-
