@@ -70,7 +70,7 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
                       _estilo("consec", alignment=TA_RIGHT))
         ]
     ]
-    logo_tbl = Table(logo_data, colWidths=[10*cm, 7*cm])
+    logo_tbl = Table(logo_data, colWidths=[9*cm, 8*cm])
     logo_tbl.setStyle(TableStyle([
         ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
         ("ROWBACKGROUNDS", (0,0), (-1,-1), [BLANCO]),
@@ -106,22 +106,22 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     cabecera_data = [
         [
-            Table([campo("Proveedor",            datos.get("proveedor") or "—")],  colWidths=[8*cm]),
-            Table([campo("N° Factura / Remisión", datos.get("numero_factura") or "—")], colWidths=[8.5*cm]),
+            Table([campo("Proveedor",            datos.get("proveedor") or "—")],  colWidths=[8.2*cm]),
+            Table([campo("N° Factura / Remisión", datos.get("numero_factura") or "—")], colWidths=[8.2*cm]),
         ],
         [
-            Table([campo("Fecha del documento",  fmt_fecha(datos.get("fecha_documento")))], colWidths=[8*cm]),
-            Table([campo("Fecha de recepción",   fmt_fecha(datos.get("fecha_recepcion")))],  colWidths=[8.5*cm]),
+            Table([campo("Fecha del documento",  fmt_fecha(datos.get("fecha_documento")))], colWidths=[8.2*cm]),
+            Table([campo("Fecha de recepción",   fmt_fecha(datos.get("fecha_recepcion")))],  colWidths=[8.2*cm]),
         ],
         [
-            Table([campo("Registrado por",       datos.get("realizado_por") or "—")], colWidths=[8*cm]),
-            Table([campo("Fecha y hora de registro", datos.get("fecha_registro") or "—")], colWidths=[8.5*cm]),
+            Table([campo("Registrado por",       datos.get("realizado_por") or "—")], colWidths=[8.2*cm]),
+            Table([campo("Fecha y hora de registro", datos.get("fecha_registro") or "—")], colWidths=[8.2*cm]),
         ],
     ]
     if datos.get("documento_soporte"):
         cabecera_data.append([
-            Table([campo("Documento soporte", datos["documento_soporte"])], colWidths=[8*cm]),
-            Table([[Paragraph("", _estilo("x"))]], colWidths=[8.5*cm]),
+            Table([campo("Documento soporte", datos["documento_soporte"])], colWidths=[8.2*cm]),
+            Table([[Paragraph("", _estilo("x"))]], colWidths=[8.2*cm]),
         ])
 
     cab_tbl = Table(cabecera_data, colWidths=[8.5*cm, 8.5*cm])
@@ -251,3 +251,4 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
