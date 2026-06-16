@@ -96,7 +96,9 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
     def fmt_fecha(s):
         if not s: return "—"
         try:
-            from datetime import datetime
+            from datetime import date, datetime
+            if isinstance(s, (date, datetime)):
+                return s.strftime("%d/%m/%Y")
             d = datetime.strptime(str(s)[:10], "%Y-%m-%d")
             return d.strftime("%d/%m/%Y")
         except:
@@ -246,3 +248,4 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
