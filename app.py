@@ -486,6 +486,15 @@ def movimientos_crear():
             pdf_generado_path = None
             if tipo == 'ingreso':
                 try:
+                    items_pdf = [
+                        {
+                            "codigo":   str(i.get("codigo", "")),
+                            "nombre":   str(i.get("nombre", "")),
+                            "cantidad": int(i.get("cantidad", 0)),
+                            "destino":  str(i.get("destino") or "bodega"),
+                        }
+                        for i in items
+                    ]
                     pdf_bytes = generar_pdf_ingreso({
                         "consecutivo":     consecutivo,
                         "proveedor":       data.get('proveedor', ''),
@@ -496,7 +505,7 @@ def movimientos_crear():
                         "comentario":      data.get('comentario', ''),
                         "realizado_por":   usuario,
                         "fecha_registro":  fecha_pdf,
-                        "items":           items,
+                        "items":           items_pdf,
                     })
                     filename = f"{consecutivo}.pdf"
                     pdf_generado_path = subir_pdf_supabase(pdf_bytes, filename)
@@ -892,6 +901,154 @@ def carga_csv_referencias_lote():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
