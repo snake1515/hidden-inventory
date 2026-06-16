@@ -53,8 +53,8 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
-        leftMargin=2*cm, rightMargin=2*cm,
-        topMargin=2*cm, bottomMargin=2*cm
+        leftMargin=1.5*cm, rightMargin=1.5*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm
     )
 
     story = []
@@ -70,7 +70,7 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
                       _estilo("consec", alignment=TA_RIGHT))
         ]
     ]
-    logo_tbl = Table(logo_data, colWidths=[9*cm, 8*cm])
+    logo_tbl = Table(logo_data, colWidths=[10*cm, 8*cm])
     logo_tbl.setStyle(TableStyle([
         ("VALIGN",     (0,0), (-1,-1), "MIDDLE"),
         ("ROWBACKGROUNDS", (0,0), (-1,-1), [BLANCO]),
@@ -106,25 +106,25 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     cabecera_data = [
         [
-            Table([campo("Proveedor",            datos.get("proveedor") or "—")],  colWidths=[8.2*cm]),
-            Table([campo("N° Factura / Remisión", datos.get("numero_factura") or "—")], colWidths=[8.2*cm]),
+            Table([campo("Proveedor",            datos.get("proveedor") or "—")],  colWidths=[8.8*cm]),
+            Table([campo("N° Factura / Remisión", datos.get("numero_factura") or "—")], colWidths=[8.8*cm]),
         ],
         [
-            Table([campo("Fecha del documento",  fmt_fecha(datos.get("fecha_documento")))], colWidths=[8.2*cm]),
-            Table([campo("Fecha de recepción",   fmt_fecha(datos.get("fecha_recepcion")))],  colWidths=[8.2*cm]),
+            Table([campo("Fecha del documento",  fmt_fecha(datos.get("fecha_documento")))], colWidths=[8.8*cm]),
+            Table([campo("Fecha de recepción",   fmt_fecha(datos.get("fecha_recepcion")))],  colWidths=[8.8*cm]),
         ],
         [
-            Table([campo("Registrado por",       datos.get("realizado_por") or "—")], colWidths=[8.2*cm]),
-            Table([campo("Fecha y hora de registro", datos.get("fecha_registro") or "—")], colWidths=[8.2*cm]),
+            Table([campo("Registrado por",       datos.get("realizado_por") or "—")], colWidths=[8.8*cm]),
+            Table([campo("Fecha y hora de registro", datos.get("fecha_registro") or "—")], colWidths=[8.8*cm]),
         ],
     ]
     if datos.get("documento_soporte"):
         cabecera_data.append([
-            Table([campo("Documento soporte", datos["documento_soporte"])], colWidths=[8.2*cm]),
-            Table([[Paragraph("", _estilo("x"))]], colWidths=[8.2*cm]),
+            Table([campo("Documento soporte", datos["documento_soporte"])], colWidths=[8.8*cm]),
+            Table([[Paragraph("", _estilo("x"))]], colWidths=[8.8*cm]),
         ])
 
-    cab_tbl = Table(cabecera_data, colWidths=[8.5*cm, 8.5*cm])
+    cab_tbl = Table(cabecera_data, colWidths=[9*cm, 9*cm])
     cab_tbl.setStyle(TableStyle([
         ("VALIGN",        (0,0), (-1,-1), "TOP"),
         ("ROWBACKGROUNDS",(0,0), (-1,-1), [BLANCO, GRIS_CLARO]),
@@ -187,7 +187,7 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
         Paragraph("", _estilo("x")),
     ])
 
-    prod_tbl = Table(tabla_data, colWidths=[1*cm, 3*cm, 7.5*cm, 2*cm, 3.5*cm])
+    prod_tbl = Table(tabla_data, colWidths=[1*cm, 3*cm, 8.5*cm, 2*cm, 3.5*cm])
     n_rows = len(tabla_data)
 
     row_colors = []
@@ -222,7 +222,7 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
                       f'<font size="9" color="#555555"><i>{datos["comentario"]}</i></font>',
                       _estilo("com", leading=15))
         ]]
-        com_tbl = Table(com_data, colWidths=[17*cm])
+        com_tbl = Table(com_data, colWidths=[18*cm])
         com_tbl.setStyle(TableStyle([
             ("BOX",           (0,0), (-1,-1), 0.5, BORDE),
             ("TOPPADDING",    (0,0), (-1,-1), 10),
@@ -241,7 +241,7 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
         Paragraph(f'<font size="8" color="#aaaaaa">{datos.get("consecutivo","—")} · {datos.get("fecha_registro","")}</font>',
                   _estilo("pie_r", alignment=TA_RIGHT)),
     ]]
-    pie_tbl = Table(pie_data, colWidths=[8.5*cm, 8.5*cm])
+    pie_tbl = Table(pie_data, colWidths=[9*cm, 9*cm])
     pie_tbl.setStyle(TableStyle([
         ("VALIGN",  (0,0), (-1,-1), "MIDDLE"),
         ("LINEABOVE",(0,0),(-1,0), 0.4, BORDE),
