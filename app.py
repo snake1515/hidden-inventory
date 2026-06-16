@@ -505,8 +505,9 @@ def movimientos_crear():
                             UPDATE movimientos SET pdf_generado = :p WHERE id = :id
                         """), {"p": pdf_generado_path, "id": mov_id})
                 except Exception as pdf_err:
-                    # No falla el movimiento si el PDF falla
+                    import traceback
                     print(f"[PDF] Error generando PDF: {pdf_err}")
+                    print(traceback.format_exc())
 
             conn.commit()
 
@@ -891,6 +892,154 @@ def carga_csv_referencias_lote():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
