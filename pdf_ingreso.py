@@ -104,36 +104,38 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
         except:
             return str(s)[:10]
 
-    cabecera_data = [
-        [
-            Table([campo("Proveedor",            datos.get("proveedor") or "—")],  colWidths=[8.8*cm]),
-            Table([campo("N° Factura / Remisión", datos.get("numero_factura") or "—")], colWidths=[8.8*cm]),
-        ],
-        [
-            Table([campo("Fecha del documento",  fmt_fecha(datos.get("fecha_documento")))], colWidths=[8.8*cm]),
-            Table([campo("Fecha de recepción",   fmt_fecha(datos.get("fecha_recepcion")))],  colWidths=[8.8*cm]),
-        ],
-        [
-            Table([campo("Registrado por",       datos.get("realizado_por") or "—")], colWidths=[8.8*cm]),
-            Table([campo("Fecha y hora de registro", datos.get("fecha_registro") or "—")], colWidths=[8.8*cm]),
-        ],
+    def lbl(texto):
+        return Paragraph(f'<font size="8" color="#888888">{texto.upper()}</font>',
+                         _estilo("lbl", alignment=TA_LEFT))
+    def val(texto):
+        return Paragraph(f'<font size="10" color="#1a1a1a"><b>{str(texto or "—")}</b></font>',
+                         _estilo("val", alignment=TA_LEFT))
+
+    cab_data = [
+        [lbl("Proveedor"), val(datos.get("proveedor") or "—"),
+         lbl("N° Factura / Remisión"), val(datos.get("numero_factura") or "—")],
+        [lbl("Fecha del documento"), val(fmt_fecha(datos.get("fecha_documento"))),
+         lbl("Fecha de recepción"), val(fmt_fecha(datos.get("fecha_recepcion")))],
+        [lbl("Registrado por"), val(datos.get("realizado_por") or "—"),
+         lbl("Fecha y hora de registro"), val(datos.get("fecha_registro") or "—")],
     ]
     if datos.get("documento_soporte"):
-        cabecera_data.append([
-            Table([campo("Documento soporte", datos["documento_soporte"])], colWidths=[8.8*cm]),
-            Table([[Paragraph("", _estilo("x"))]], colWidths=[8.8*cm]),
+        cab_data.append([
+            lbl("Documento soporte"), val(datos["documento_soporte"]),
+            Paragraph("", _estilo("x")), Paragraph("", _estilo("x"))
         ])
 
-    cab_tbl = Table(cabecera_data, colWidths=[9*cm, 9*cm])
+    cab_tbl = Table(cab_data, colWidths=[4*cm, 5*cm, 4.5*cm, 4.5*cm])
     cab_tbl.setStyle(TableStyle([
         ("VALIGN",        (0,0), (-1,-1), "TOP"),
         ("ROWBACKGROUNDS",(0,0), (-1,-1), [BLANCO, GRIS_CLARO]),
         ("BOX",           (0,0), (-1,-1), 0.5, BORDE),
         ("LINEBELOW",     (0,0), (-1,-2), 0.3, BORDE),
+        ("LINEBEFORE",    (2,0), (2,-1), 0.3, BORDE),
         ("TOPPADDING",    (0,0), (-1,-1), 10),
-        ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-        ("LEFTPADDING",   (0,0), (-1,-1), 12),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 12),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("LEFTPADDING",   (0,0), (-1,-1), 10),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 10),
     ]))
     story.append(cab_tbl)
     story.append(Spacer(1, 0.4*cm))
@@ -251,4 +253,5 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
 
