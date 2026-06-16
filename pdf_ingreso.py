@@ -114,14 +114,14 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
     cab_data = [
         [lbl("Proveedor"), val(datos.get("proveedor") or "—"),
          lbl("N° Factura / Remisión"), val(datos.get("numero_factura") or "—")],
-        [lbl("Fecha del documento"), val(fmt_fecha(datos.get("fecha_documento"))),
-         lbl("Fecha de recepción"), val(fmt_fecha(datos.get("fecha_recepcion")))],
+        [lbl("Fecha documento"), val(fmt_fecha(datos.get("fecha_documento"))),
+         lbl("Fecha recepción"), val(fmt_fecha(datos.get("fecha_recepcion")))],
         [lbl("Registrado por"), val(datos.get("realizado_por") or "—"),
-         lbl("Fecha y hora de registro"), val(datos.get("fecha_registro") or "—")],
+         lbl("Fecha y hora"), val(datos.get("fecha_registro") or "—")],
     ]
     if datos.get("documento_soporte"):
         cab_data.append([
-            lbl("Documento soporte"), val(datos["documento_soporte"]),
+            lbl("Doc. soporte"), val(datos["documento_soporte"]),
             Paragraph("", _estilo("x")), Paragraph("", _estilo("x"))
         ])
 
