@@ -325,3 +325,200 @@ def generar_pdf_traslado(datos: dict) -> bytes:
     ]
     return _generar_pdf_base("traslado", datos, cab_rows)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+def generar_pdf_csv(datos: dict) -> bytes:
+    """
+    PDF de carga masiva CSV. Tiene su propio layout porque incluye
+    dos tablas: productos agregados y productos rechazados (con motivo).
+
+    datos = {
+        consecutivo, archivo_nombre, comentario,
+        realizado_por, fecha_registro,
+        agregados:  [{codigo, nombre, grupo, existencias_bodega, existencias_almacen}],
+        rechazados: [{fila, motivo}]   # fila = dict crudo de la fila del CSV
+    }
+    """
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=1.5*cm, rightMargin=1.5*cm,
+        topMargin=1.5*cm, bottomMargin=1.5*cm
+    )
+    story = []
+
+    agregados  = datos.get("agregados", [])
+    rechazados = datos.get("rechazados", [])
+
+    # ── 1. LOGO + TÍTULO/CONSECUTIVO ─────────────────────────────────────────
+    logo_data = [
+        [
+            Paragraph('<font color="#aaaaaa"><i>[ Logo y datos de la empresa ]</i></font>',
+                      _estilo("logo_hint", fontSize=9, textColor=colors.HexColor("#aaaaaa"),
+                              alignment=TA_LEFT)),
+            Table([
+                [Paragraph('<font size="8" color="#888888">CARGA MASIVA DE INVENTARIO</font>',
+                           _estilo("tit_label", alignment=TA_RIGHT))],
+                [Paragraph(f'<font size="24" color="#1a1a1a"><b>{datos.get("consecutivo","—")}</b></font>',
+                           _estilo("consec", alignment=TA_RIGHT))],
+            ], colWidths=[8*cm])
+        ]
+    ]
+    logo_tbl = Table(logo_data, colWidths=[10*cm, 8*cm])
+    logo_tbl.setStyle(TableStyle([
+        ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+        ("ROWBACKGROUNDS",(0,0), (-1,-1), [BLANCO]),
+        ("BOX",           (0,0), (-1,-1), 0.5, BORDE),
+        ("TOPPADDING",    (0,0), (-1,-1), 18),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 18),
+        ("LEFTPADDING",   (0,0), (0,-1), 14),
+        ("RIGHTPADDING",  (1,0), (1,-1), 14),
+    ]))
+    story.append(logo_tbl)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── 2. CABECERA ───────────────────────────────────────────────────────────
+    cab_rows = [
+        [lbl("Archivo"), val(datos.get("archivo_nombre") or "—"),
+         lbl("Total filas"), val(str(len(agregados) + len(rechazados)))],
+        [lbl("Agregados"), val(str(len(agregados))),
+         lbl("Rechazados"), val(str(len(rechazados)))],
+        [lbl("Registrado por"), val(datos.get("realizado_por") or "—"),
+         lbl("Fecha y hora"), val(datos.get("fecha_registro") or "—")],
+    ]
+    cab_tbl = Table(cab_rows, colWidths=[4*cm, 5*cm, 4.5*cm, 4.5*cm])
+    cab_tbl.setStyle(TableStyle([
+        ("VALIGN",        (0,0), (-1,-1), "TOP"),
+        ("ROWBACKGROUNDS",(0,0), (-1,-1), [BLANCO, GRIS_CLARO]),
+        ("BOX",           (0,0), (-1,-1), 0.5, BORDE),
+        ("LINEBELOW",     (0,0), (-1,-2), 0.3, BORDE),
+        ("LINEBEFORE",    (2,0), (2,-1), 0.3, BORDE),
+        ("TOPPADDING",    (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("LEFTPADDING",   (0,0), (-1,-1), 10),
+        ("RIGHTPADDING",  (0,0), (-1,-1), 10),
+    ]))
+    story.append(cab_tbl)
+    story.append(Spacer(1, 0.45*cm))
+
+    # ── 3. TABLA DE PRODUCTOS AGREGADOS ──────────────────────────────────────
+    story.append(Paragraph(
+        '<font size="8" color="#888888">PRODUCTOS AGREGADOS</font>',
+        _estilo("sec_title", spaceBefore=4, spaceAfter=6)))
+
+    if agregados:
+        thead = [
+            Paragraph('<font size="8" color="#ffffff"><b>#</b></font>',        _estilo("th", alignment=TA_CENTER)),
+            Paragraph('<font size="8" color="#ffffff"><b>CÓDIGO</b></font>',   _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>PRODUCTO</b></font>',  _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>GRUPO</b></font>',     _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>BODEGA</b></font>',   _estilo("th", alignment=TA_CENTER)),
+            Paragraph('<font size="8" color="#ffffff"><b>ALMACÉN</b></font>',  _estilo("th", alignment=TA_CENTER)),
+        ]
+        tabla_agr = [thead]
+        for n, p in enumerate(agregados, 1):
+            tabla_agr.append([
+                Paragraph(str(n), _estilo("td_num", alignment=TA_CENTER, textColor=GRIS_TEXTO, fontSize=9)),
+                Paragraph(str(p.get("codigo","")), _estilo("td_cod", fontSize=9, textColor=GRIS_TEXTO, fontName="Helvetica-Oblique")),
+                Paragraph(str(p.get("nombre","")), _estilo("td_nom", fontSize=9)),
+                Paragraph(str(p.get("grupo","")),  _estilo("td_grp", fontSize=9, textColor=GRIS_TEXTO)),
+                Paragraph(str(p.get("existencias_bodega",0)),  _estilo("td_b", alignment=TA_CENTER, fontSize=9, fontName="Helvetica-Bold")),
+                Paragraph(str(p.get("existencias_almacen",0)), _estilo("td_a", alignment=TA_CENTER, fontSize=9, fontName="Helvetica-Bold")),
+            ])
+        agr_tbl = Table(tabla_agr, colWidths=[0.8*cm, 2.5*cm, 6.7*cm, 3*cm, 2.5*cm, 2.5*cm])
+        n_rows = len(tabla_agr)
+        agr_tbl.setStyle(TableStyle([
+            ("BACKGROUND",     (0,0), (-1,0), NEGRO),
+            ("ROWBACKGROUNDS", (0,1), (-1,n_rows-1), [BLANCO, GRIS_CLARO]),
+            ("BOX",            (0,0), (-1,-1), 0.5, BORDE),
+            ("INNERGRID",      (0,0), (-1,-1), 0.3, BORDE),
+            ("TOPPADDING",     (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING",  (0,0), (-1,-1), 6),
+            ("LEFTPADDING",    (0,0), (-1,-1), 7),
+            ("RIGHTPADDING",   (0,0), (-1,-1), 7),
+            ("VALIGN",         (0,0), (-1,-1), "MIDDLE"),
+        ]))
+        story.append(agr_tbl)
+    else:
+        story.append(Paragraph('<font size="9" color="#888888">Ningún producto fue agregado en esta carga.</font>',
+                                _estilo("sin_agr")))
+
+    # ── 4. TABLA DE PRODUCTOS RECHAZADOS ─────────────────────────────────────
+    if rechazados:
+        story.append(Spacer(1, 0.5*cm))
+        story.append(Paragraph(
+            '<font size="8" color="#888888">PRODUCTOS RECHAZADOS</font>',
+            _estilo("sec_title_rej", spaceBefore=4, spaceAfter=6)))
+
+        thead_r = [
+            Paragraph('<font size="8" color="#ffffff"><b>#</b></font>',        _estilo("th", alignment=TA_CENTER)),
+            Paragraph('<font size="8" color="#ffffff"><b>CÓDIGO</b></font>',   _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>NOMBRE</b></font>',    _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>MOTIVO DE RECHAZO</b></font>', _estilo("th", alignment=TA_LEFT)),
+        ]
+        tabla_rej = [thead_r]
+        for n, r in enumerate(rechazados, 1):
+            fila = r.get("fila", {}) or {}
+            codigo = str(fila.get("codigo", "") or "—")
+            nombre = str(fila.get("nombre", "") or "—")
+            motivo = str(r.get("motivo", "Motivo no especificado"))
+            tabla_rej.append([
+                Paragraph(str(n), _estilo("td_num_r", alignment=TA_CENTER, textColor=GRIS_TEXTO, fontSize=9)),
+                Paragraph(codigo, _estilo("td_cod_r", fontSize=9, textColor=GRIS_TEXTO, fontName="Helvetica-Oblique")),
+                Paragraph(nombre, _estilo("td_nom_r", fontSize=9)),
+                Paragraph(f'<font color="#a32d2d">{motivo}</font>', _estilo("td_mot_r", fontSize=9)),
+            ])
+        rej_tbl = Table(tabla_rej, colWidths=[0.8*cm, 2.7*cm, 6.5*cm, 8*cm])
+        n_rows_r = len(tabla_rej)
+        rej_tbl.setStyle(TableStyle([
+            ("BACKGROUND",     (0,0), (-1,0), colors.HexColor("#791f1f")),
+            ("ROWBACKGROUNDS", (0,1), (-1,n_rows_r-1), [BLANCO, colors.HexColor("#fcebeb")]),
+            ("BOX",            (0,0), (-1,-1), 0.5, BORDE),
+            ("INNERGRID",      (0,0), (-1,-1), 0.3, BORDE),
+            ("TOPPADDING",     (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING",  (0,0), (-1,-1), 6),
+            ("LEFTPADDING",    (0,0), (-1,-1), 7),
+            ("RIGHTPADDING",   (0,0), (-1,-1), 7),
+            ("VALIGN",         (0,0), (-1,-1), "MIDDLE"),
+        ]))
+        story.append(rej_tbl)
+
+    # ── 5. COMENTARIO ─────────────────────────────────────────────────────────
+    if datos.get("comentario"):
+        story.append(Spacer(1, 0.35*cm))
+        com_data = [[
+            Paragraph('<font size="8" color="#888888">COMENTARIO</font><br/>'
+                      f'<font size="9" color="#555555"><i>{datos["comentario"]}</i></font>',
+                      _estilo("com", leading=15))
+        ]]
+        com_tbl = Table(com_data, colWidths=[18*cm])
+        com_tbl.setStyle(TableStyle([
+            ("BOX",           (0,0), (-1,-1), 0.5, BORDE),
+            ("TOPPADDING",    (0,0), (-1,-1), 10),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+            ("LEFTPADDING",   (0,0), (-1,-1), 12),
+            ("RIGHTPADDING",  (0,0), (-1,-1), 12),
+            ("BACKGROUND",    (0,0), (-1,-1), GRIS_CLARO),
+        ]))
+        story.append(com_tbl)
+
+    # ── 6. PIE ────────────────────────────────────────────────────────────────
+    story.append(Spacer(1, 0.5*cm))
+    pie_data = [[
+        Paragraph('<font size="8" color="#aaaaaa">Generado por sistema de inventario</font>',
+                  _estilo("pie_l", alignment=TA_LEFT)),
+        Paragraph(f'<font size="8" color="#aaaaaa">{datos.get("consecutivo","—")} · {datos.get("fecha_registro","")}</font>',
+                  _estilo("pie_r", alignment=TA_RIGHT)),
+    ]]
+    pie_tbl = Table(pie_data, colWidths=[9*cm, 9*cm])
+    pie_tbl.setStyle(TableStyle([
+        ("VALIGN",   (0,0), (-1,-1), "MIDDLE"),
+        ("LINEABOVE",(0,0), (-1,0), 0.4, BORDE),
+        ("TOPPADDING", (0,0), (-1,-1), 6),
+    ]))
+    story.append(pie_tbl)
+
+    doc.build(story)
+    return buf.getvalue()
+
+
