@@ -440,6 +440,9 @@
       <button class="btn btn-primary" id="btn-ver-pdf-gen" style="display:none" onclick="verPDFGen()">
         📄 Ver comprobante
       </button>
+      <button class="btn btn-danger" id="btn-eliminar-det" style="display:none" onclick="eliminarDesdeDetalle()">
+        🗑 Eliminar movimiento
+      </button>
     </div>
   </div>
 </div>
@@ -448,12 +451,14 @@
 
 <script>
 // ─── Estado global ───
+const esAdmin   = {{ es_admin|tojson }};
 let tipoSel     = null;
 let itemsMov    = [];   // [{codigo, nombre, cantidad, origen, destino, es_nuevo, datos_nuevos}]
 let pdfPath     = null; // path en Supabase una vez subido
 let pdfFile     = null; // File object pendiente de subir
 let debounceTimer, debounceMovTimer;
 let detMovId    = null;
+let detMovEtiqueta = null;
 
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
@@ -518,6 +523,10 @@ function renderTablaMovimientos(data) {
       ? `<button class="btn-icon" onclick="event.stopPropagation();verPDFGenerado(${m.id})" title="Ver comprobante">📄</button>`
       : '<span style="color:var(--muted);font-size:11px">—</span>';
 
+    const btnEliminar = esAdmin
+      ? `<button class="btn-icon btn-sm" style="border-color:var(--danger);color:var(--danger);margin-left:6px" onclick="event.stopPropagation();eliminarMovimiento(${m.id},'${m.consecutivo || ('#'+m.id)}')" title="Eliminar movimiento">🗑</button>`
+      : '';
+
     return `<tr onclick="abrirDetalle(${m.id})">
       <td>${consec}</td>
       <td><span class="badge-tipo badge-${m.tipo}">${m.tipo}</span></td>
@@ -528,9 +537,25 @@ function renderTablaMovimientos(data) {
       <td>${doc}</td>
       <td style="text-align:center">${pdfSop}</td>
       <td style="text-align:center">${pdfGen}</td>
-      <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button></td>
+      <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button>${btnEliminar}</td>
     </tr>`;
   }).join('');
+}
+
+// ─── ELIMINAR ───
+function eliminarMovimiento(id, etiqueta) {
+  if (!confirm(`¿Eliminar el movimiento ${etiqueta}? Si afectó existencias, se revertirán. Esta acción no se puede deshacer.`)) return;
+  fetch(`/movimientos/eliminar/${id}`, {method:'POST'})
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showToast(`✓ Movimiento ${etiqueta} eliminado`);
+        cargarMovimientos();
+      } else {
+        showToast('Error: ' + res.error, true);
+      }
+    })
+    .catch(() => showToast('Error de conexión', true));
 }
 
 // ─── DETALLE ───
@@ -540,6 +565,7 @@ function abrirDetalle(id) {
   document.getElementById('det-contenido').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
   document.getElementById('btn-ver-pdf').style.display     = 'none';
   document.getElementById('btn-ver-pdf-gen').style.display = 'none';
+  document.getElementById('btn-eliminar-det').style.display = esAdmin ? 'inline-flex' : 'none';
   fetch(`/movimientos/detalle/${id}`)
     .then(r => r.json())
     .then(renderDetalle);
@@ -552,6 +578,7 @@ function renderDetalle(m) {
   if (m.error) { document.getElementById('det-contenido').innerHTML = `<p style="color:var(--danger)">${m.error}</p>`; return; }
   if (m.tiene_pdf)     document.getElementById('btn-ver-pdf').style.display     = 'inline-flex';
   if (m.tiene_pdf_gen) document.getElementById('btn-ver-pdf-gen').style.display = 'inline-flex';
+  detMovEtiqueta = m.consecutivo || ('#' + m.id);
 
   const fecha = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'medium', timeStyle:'medium'});
 
@@ -611,6 +638,12 @@ function verPDF()      { if (detMovId) window.open(`/movimientos/pdf/${detMovId}
 function verPDFGen()   { if (detMovId) window.open(`/movimientos/pdf_generado/${detMovId}`, '_blank'); }
 function verPDFById(id)       { window.open(`/movimientos/pdf/${id}`, '_blank'); }
 function verPDFGenerado(id)   { window.open(`/movimientos/pdf_generado/${id}`, '_blank'); }
+function eliminarDesdeDetalle() {
+  if (!detMovId) return;
+  const id = detMovId, etiqueta = detMovEtiqueta || ('#' + detMovId);
+  cerrarDetalle();
+  eliminarMovimiento(id, etiqueta);
+}
 
 // ─── MODAL NUEVO ───
 function abrirNuevoMovimiento() {
@@ -940,3 +973,4 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
