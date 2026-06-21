@@ -577,6 +577,75 @@ def movimientos_pdf_generado(mov_id):
     return send_file(io.BytesIO(data), mimetype='application/pdf', download_name=nombre)
 
 
+@app.route('/movimientos/eliminar/<int:mov_id>', methods=['POST'])
+@movimientos_required
+def movimientos_eliminar(mov_id):
+    """Elimina un movimiento (solo admin). Si el movimiento afectó existencias,
+    revierte el ajuste antes de borrar el registro."""
+    if not session.get('admin'):
+        return jsonify({'success': False, 'error': 'Solo el administrador puede eliminar movimientos'}), 403
+
+    fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    usuario   = get_current_user()
+
+    try:
+        with engine.connect() as conn:
+            mov = conn.execute(
+                text("SELECT id, tipo FROM movimientos WHERE id = :id"), {"id": mov_id}
+            ).fetchone()
+            if not mov:
+                return jsonify({'success': False, 'error': 'Movimiento no encontrado'}), 404
+
+            tipo  = mov.tipo
+            items = conn.execute(text("""
+                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino
+                FROM movimiento_items WHERE movimiento_id = :id
+            """), {"id": mov_id}).fetchall()
+
+            # Revertir existencias (lógica inversa exacta a movimientos_crear)
+            for item in items:
+                codigo   = item.producto_codigo
+                cantidad = item.cantidad
+                origen   = item.ubicacion_origen
+                destino  = item.ubicacion_destino
+
+                if tipo == 'ingreso' and destino:
+                    col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
+                    conn.execute(text(f"""
+                        UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
+                            ultima_mod_cantidad = :f, modificado_por = :u
+                        WHERE codigo = :cod
+                    """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
+
+                elif tipo == 'egreso' and origen:
+                    col = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
+                    conn.execute(text(f"""
+                        UPDATE inventario SET {col} = {col} + :c,
+                            ultima_mod_cantidad = :f, modificado_por = :u
+                        WHERE codigo = :cod
+                    """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
+
+                elif tipo == 'traslado' and origen and destino:
+                    col_out = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
+                    col_in  = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
+                    if col_out != col_in:
+                        conn.execute(text(f"""
+                            UPDATE inventario
+                            SET {col_out} = {col_out} + :c,
+                                {col_in}  = GREATEST({col_in} - :c, 0),
+                                ultima_mod_cantidad = :f, modificado_por = :u
+                            WHERE codigo = :cod
+                        """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
+
+            conn.execute(text("DELETE FROM movimiento_items WHERE movimiento_id = :id"), {"id": mov_id})
+            conn.execute(text("DELETE FROM movimientos WHERE id = :id"), {"id": mov_id})
+            conn.commit()
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/movimientos/buscar_productos')
 @movimientos_required
 def movimientos_buscar_productos():
@@ -901,6 +970,449 @@ def carga_csv_referencias_lote():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
