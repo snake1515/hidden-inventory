@@ -447,15 +447,40 @@ def movimientos_crear():
                 cantidad = int(item['cantidad'])
                 origen   = item.get('origen')
                 destino  = item.get('destino')
+                es_nuevo = bool(item.get('es_nuevo'))
+
+                # Si es producto nuevo, crearlo primero en inventario (existencias en 0,
+                # luego el UPDATE de abajo las ajusta según el tipo de movimiento)
+                if es_nuevo:
+                    existe = conn.execute(
+                        text("SELECT 1 FROM inventario WHERE codigo = :cod"), {"cod": codigo}
+                    ).fetchone()
+                    if not existe:
+                        dn = item.get('datos_nuevos') or {}
+                        conn.execute(text("""
+                            INSERT INTO inventario
+                                (codigo, nombre, referencia, marca, grupo,
+                                 existencias_bodega, existencias_almacen,
+                                 ultima_mod_cantidad, modificado_por)
+                            VALUES (:cod, :nom, :ref, :marca, :grupo, 0, 0, :f, :u)
+                        """), {
+                            "cod": codigo,
+                            "nom": dn.get('nombre') or nombre,
+                            "ref": (dn.get('referencia') or '').strip() or None,
+                            "marca": (dn.get('marca') or '').strip() or None,
+                            "grupo": (dn.get('grupo') or '').strip() or None,
+                            "f": fecha_str, "u": usuario
+                        })
 
                 conn.execute(text("""
                     INSERT INTO movimiento_items
                         (movimiento_id, producto_codigo, producto_nombre, cantidad,
-                         ubicacion_origen, ubicacion_destino)
-                    VALUES (:mid, :cod, :nom, :cant, :orig, :dest)
+                         ubicacion_origen, ubicacion_destino, es_nuevo)
+                    VALUES (:mid, :cod, :nom, :cant, :orig, :dest, :es_nuevo)
                 """), {
                     "mid": mov_id, "cod": codigo, "nom": nombre,
-                    "cant": cantidad, "orig": origen, "dest": destino
+                    "cant": cantidad, "orig": origen, "dest": destino,
+                    "es_nuevo": es_nuevo
                 })
 
                 if tipo == 'ingreso':
@@ -644,7 +669,7 @@ def movimientos_eliminar(mov_id):
 
             tipo  = mov.tipo
             items = conn.execute(text("""
-                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino
+                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino, es_nuevo
                 FROM movimiento_items WHERE movimiento_id = :id
             """), {"id": mov_id}).fetchall()
 
@@ -654,6 +679,13 @@ def movimientos_eliminar(mov_id):
                 cantidad = item.cantidad
                 origen   = item.ubicacion_origen
                 destino  = item.ubicacion_destino
+                es_nuevo = bool(item.es_nuevo)
+
+                # Si el producto fue creado por este mismo ingreso, no existía antes:
+                # se borra por completo en vez de solo revertir existencias.
+                if tipo == 'ingreso' and es_nuevo:
+                    conn.execute(text("DELETE FROM inventario WHERE codigo = :cod"), {"cod": codigo})
+                    continue
 
                 if tipo == 'ingreso' and destino:
                     col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
@@ -690,6 +722,15 @@ def movimientos_eliminar(mov_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/movimientos/siguiente_codigo')
+@movimientos_required
+def movimientos_siguiente_codigo():
+    """Devuelve el siguiente código numérico disponible (MAX(codigo)+1) para productos nuevos."""
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT COALESCE(MAX(codigo), 0) + 1 AS siguiente FROM inventario")).fetchone()
+    return jsonify({'siguiente_codigo': row.siguiente})
 
 
 @app.route('/movimientos/buscar_productos')
@@ -1016,6 +1057,450 @@ def carga_csv_referencias_lote():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
