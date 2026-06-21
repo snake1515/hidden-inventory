@@ -324,3 +324,4 @@ def generar_pdf_traslado(datos: dict) -> bytes:
          lbl("Fecha y hora"), val(datos.get("fecha_registro") or "—")],
     ]
     return _generar_pdf_base("traslado", datos, cab_rows)
+
