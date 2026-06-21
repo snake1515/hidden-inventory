@@ -52,8 +52,6 @@
   .btn-icon { background:transparent; border:1px solid var(--border); color:var(--muted);
     padding:5px 10px; font-size:12px; cursor:pointer; border-radius:2px; transition:all .2s; }
   .btn-icon:hover { border-color:var(--accent); color:var(--accent); }
-  .btn-icon-danger { border-color:rgba(255,90,90,.3); color:var(--danger); margin-left:4px; }
-  .btn-icon-danger:hover { border-color:var(--danger); background:rgba(255,90,90,.1); color:var(--danger); }
 
   /* ── Tabla movimientos ── */
   .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:4px; margin-bottom:24px; }
@@ -338,12 +336,6 @@
           </select>
         </div>
         <div class="form-group" style="flex:2">
-          <label>Cliente / Destinatario (opcional)</label>
-          <input type="text" id="nm-cliente" placeholder="Nombre del cliente o proveedor..."/>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group" style="flex:2">
           <label>Documento soporte (opcional)</label>
           <input type="text" id="nm-doc-egreso" placeholder="Remisión, factura, acta..."/>
         </div>
@@ -441,15 +433,15 @@
       <div class="empty"><span class="spinner"></span></div>
     </div>
     <div class="modal-footer">
-      {% if es_admin %}
-      <button class="btn btn-danger" onclick="confirmarEliminarDesdeDetalle()">🗑 Eliminar</button>
-      {% endif %}
       <button class="btn btn-secondary" onclick="cerrarDetalle()">Cerrar</button>
       <button class="btn btn-secondary" id="btn-ver-pdf" style="display:none" onclick="verPDF()">
         📎 Ver doc. soporte
       </button>
       <button class="btn btn-primary" id="btn-ver-pdf-gen" style="display:none" onclick="verPDFGen()">
         📄 Ver comprobante
+      </button>
+      <button class="btn btn-danger" id="btn-eliminar-det" style="display:none" onclick="eliminarDesdeDetalle()">
+        🗑 Eliminar movimiento
       </button>
     </div>
   </div>
@@ -459,13 +451,14 @@
 
 <script>
 // ─── Estado global ───
-const IS_ADMIN  = {{ 'true' if es_admin else 'false' }};
+const esAdmin   = {{ es_admin|tojson }};
 let tipoSel     = null;
 let itemsMov    = [];   // [{codigo, nombre, cantidad, origen, destino, es_nuevo, datos_nuevos}]
 let pdfPath     = null; // path en Supabase una vez subido
 let pdfFile     = null; // File object pendiente de subir
 let debounceTimer, debounceMovTimer;
 let detMovId    = null;
+let detMovEtiqueta = null;
 
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
@@ -530,6 +523,10 @@ function renderTablaMovimientos(data) {
       ? `<button class="btn-icon" onclick="event.stopPropagation();verPDFGenerado(${m.id})" title="Ver comprobante">📄</button>`
       : '<span style="color:var(--muted);font-size:11px">—</span>';
 
+    const btnEliminar = esAdmin
+      ? `<button class="btn-icon btn-sm" style="border-color:var(--danger);color:var(--danger);margin-left:6px" onclick="event.stopPropagation();eliminarMovimiento(${m.id},'${m.consecutivo || ('#'+m.id)}')" title="Eliminar movimiento">🗑</button>`
+      : '';
+
     return `<tr onclick="abrirDetalle(${m.id})">
       <td>${consec}</td>
       <td><span class="badge-tipo badge-${m.tipo}">${m.tipo}</span></td>
@@ -540,12 +537,25 @@ function renderTablaMovimientos(data) {
       <td>${doc}</td>
       <td style="text-align:center">${pdfSop}</td>
       <td style="text-align:center">${pdfGen}</td>
-      <td>
-        <button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button>
-        ${IS_ADMIN ? `<button class="btn-icon btn-sm btn-icon-danger" onclick="event.stopPropagation();confirmarEliminar(${m.id},'${m.consecutivo || m.id}')" title="Eliminar movimiento">🗑</button>` : ''}
-      </td>
+      <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button>${btnEliminar}</td>
     </tr>`;
   }).join('');
+}
+
+// ─── ELIMINAR ───
+function eliminarMovimiento(id, etiqueta) {
+  if (!confirm(`¿Eliminar el movimiento ${etiqueta}? Si afectó existencias, se revertirán. Esta acción no se puede deshacer.`)) return;
+  fetch(`/movimientos/eliminar/${id}`, {method:'POST'})
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showToast(`✓ Movimiento ${etiqueta} eliminado`);
+        cargarMovimientos();
+      } else {
+        showToast('Error: ' + res.error, true);
+      }
+    })
+    .catch(() => showToast('Error de conexión', true));
 }
 
 // ─── DETALLE ───
@@ -555,6 +565,7 @@ function abrirDetalle(id) {
   document.getElementById('det-contenido').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
   document.getElementById('btn-ver-pdf').style.display     = 'none';
   document.getElementById('btn-ver-pdf-gen').style.display = 'none';
+  document.getElementById('btn-eliminar-det').style.display = esAdmin ? 'inline-flex' : 'none';
   fetch(`/movimientos/detalle/${id}`)
     .then(r => r.json())
     .then(renderDetalle);
@@ -567,6 +578,7 @@ function renderDetalle(m) {
   if (m.error) { document.getElementById('det-contenido').innerHTML = `<p style="color:var(--danger)">${m.error}</p>`; return; }
   if (m.tiene_pdf)     document.getElementById('btn-ver-pdf').style.display     = 'inline-flex';
   if (m.tiene_pdf_gen) document.getElementById('btn-ver-pdf-gen').style.display = 'inline-flex';
+  detMovEtiqueta = m.consecutivo || ('#' + m.id);
 
   const fecha = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'medium', timeStyle:'medium'});
 
@@ -583,10 +595,9 @@ function renderDetalle(m) {
       <div class="det-meta"><strong>N° Factura / Remisión</strong>${m.numero_factura || '—'}</div>
       <div class="det-meta"><strong>Fecha documento</strong>${fmtFecha(m.fecha_documento)}</div>
       <div class="det-meta"><strong>Fecha recepción</strong>${fmtFecha(m.fecha_recepcion)}</div>`;
-  } else if (m.tipo === 'egreso') {
+  } else if (m.tipo === 'egreso' && m.motivo_egreso) {
     extraCabecera = `
-      ${m.motivo_egreso ? `<div class="det-meta"><strong>Motivo</strong>${m.motivo_egreso}</div>` : ''}
-      ${m.cliente ? `<div class="det-meta"><strong>Cliente / Destinatario</strong>${m.cliente}</div>` : ''}`;
+      <div class="det-meta"><strong>Motivo</strong>${m.motivo_egreso}</div>`;
   }
 
   const items = m.items.map(i => {
@@ -627,36 +638,11 @@ function verPDF()      { if (detMovId) window.open(`/movimientos/pdf/${detMovId}
 function verPDFGen()   { if (detMovId) window.open(`/movimientos/pdf_generado/${detMovId}`, '_blank'); }
 function verPDFById(id)       { window.open(`/movimientos/pdf/${id}`, '_blank'); }
 function verPDFGenerado(id)   { window.open(`/movimientos/pdf_generado/${id}`, '_blank'); }
-
-// ─── ELIMINAR MOVIMIENTO (solo admin) ───
-function confirmarEliminar(id, etiqueta) {
-  if (!confirm(`¿Eliminar el movimiento ${etiqueta}?\n\nEsto revertirá los cambios de existencias que generó. Esta acción no se puede deshacer.`)) {
-    return;
-  }
-  eliminarMovimiento(id);
-}
-
-function eliminarMovimiento(id) {
-  fetch(`/movimientos/eliminar/${id}`, { method: 'POST' })
-    .then(r => r.json())
-    .then(res => {
-      if (res.success) {
-        showToast('✓ Movimiento eliminado y existencias revertidas');
-        cargarMovimientos();
-      } else {
-        showToast('Error: ' + res.error, true);
-      }
-    })
-    .catch(() => showToast('Error de conexión', true));
-}
-
-function confirmarEliminarDesdeDetalle() {
+function eliminarDesdeDetalle() {
   if (!detMovId) return;
-  if (!confirm('¿Eliminar este movimiento?\n\nEsto revertirá los cambios de existencias que generó. Esta acción no se puede deshacer.')) {
-    return;
-  }
-  eliminarMovimiento(detMovId);
+  const id = detMovId, etiqueta = detMovEtiqueta || ('#' + detMovId);
   cerrarDetalle();
+  eliminarMovimiento(id, etiqueta);
 }
 
 // ─── MODAL NUEVO ───
@@ -671,7 +657,6 @@ function abrirNuevoMovimiento() {
   document.getElementById('nm-fecha-doc').value  = '';
   document.getElementById('nm-fecha-rec').value  = '';
   document.getElementById('nm-motivo').value     = '';
-  document.getElementById('nm-cliente').value    = '';
   document.getElementById('campos-ingreso').style.display  = 'none';
   document.getElementById('campos-egreso').style.display   = 'none';
   document.getElementById('campos-traslado').style.display = 'none';
@@ -942,7 +927,6 @@ async function guardarMovimiento() {
       comentario:      document.getElementById('nm-comentario').value.trim(),
       pdf_path:        pdfPath,
       motivo_egreso:   tipoSel === 'egreso' ? document.getElementById('nm-motivo').value : '',
-      cliente:         tipoSel === 'egreso' ? document.getElementById('nm-cliente').value.trim() : '',
       proveedor:       tipoSel === 'ingreso' ? document.getElementById('nm-proveedor').value.trim() : '',
       numero_factura:  tipoSel === 'ingreso' ? document.getElementById('nm-factura').value.trim()   : '',
       fecha_documento: tipoSel === 'ingreso' ? document.getElementById('nm-fecha-doc').value || null : null,
