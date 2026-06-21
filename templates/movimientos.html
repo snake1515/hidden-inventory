@@ -52,6 +52,8 @@
   .btn-icon { background:transparent; border:1px solid var(--border); color:var(--muted);
     padding:5px 10px; font-size:12px; cursor:pointer; border-radius:2px; transition:all .2s; }
   .btn-icon:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-icon-danger { border-color:rgba(255,90,90,.3); color:var(--danger); margin-left:4px; }
+  .btn-icon-danger:hover { border-color:var(--danger); background:rgba(255,90,90,.1); color:var(--danger); }
 
   /* ── Tabla movimientos ── */
   .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:4px; margin-bottom:24px; }
@@ -439,6 +441,9 @@
       <div class="empty"><span class="spinner"></span></div>
     </div>
     <div class="modal-footer">
+      {% if es_admin %}
+      <button class="btn btn-danger" onclick="confirmarEliminarDesdeDetalle()">🗑 Eliminar</button>
+      {% endif %}
       <button class="btn btn-secondary" onclick="cerrarDetalle()">Cerrar</button>
       <button class="btn btn-secondary" id="btn-ver-pdf" style="display:none" onclick="verPDF()">
         📎 Ver doc. soporte
@@ -454,6 +459,7 @@
 
 <script>
 // ─── Estado global ───
+const IS_ADMIN  = {{ 'true' if es_admin else 'false' }};
 let tipoSel     = null;
 let itemsMov    = [];   // [{codigo, nombre, cantidad, origen, destino, es_nuevo, datos_nuevos}]
 let pdfPath     = null; // path en Supabase una vez subido
@@ -534,7 +540,10 @@ function renderTablaMovimientos(data) {
       <td>${doc}</td>
       <td style="text-align:center">${pdfSop}</td>
       <td style="text-align:center">${pdfGen}</td>
-      <td><button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button></td>
+      <td>
+        <button class="btn-icon btn-sm" onclick="event.stopPropagation();abrirDetalle(${m.id})">Ver</button>
+        ${IS_ADMIN ? `<button class="btn-icon btn-sm btn-icon-danger" onclick="event.stopPropagation();confirmarEliminar(${m.id},'${m.consecutivo || m.id}')" title="Eliminar movimiento">🗑</button>` : ''}
+      </td>
     </tr>`;
   }).join('');
 }
@@ -618,6 +627,37 @@ function verPDF()      { if (detMovId) window.open(`/movimientos/pdf/${detMovId}
 function verPDFGen()   { if (detMovId) window.open(`/movimientos/pdf_generado/${detMovId}`, '_blank'); }
 function verPDFById(id)       { window.open(`/movimientos/pdf/${id}`, '_blank'); }
 function verPDFGenerado(id)   { window.open(`/movimientos/pdf_generado/${id}`, '_blank'); }
+
+// ─── ELIMINAR MOVIMIENTO (solo admin) ───
+function confirmarEliminar(id, etiqueta) {
+  if (!confirm(`¿Eliminar el movimiento ${etiqueta}?\n\nEsto revertirá los cambios de existencias que generó. Esta acción no se puede deshacer.`)) {
+    return;
+  }
+  eliminarMovimiento(id);
+}
+
+function eliminarMovimiento(id) {
+  fetch(`/movimientos/eliminar/${id}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+      if (res.success) {
+        showToast('✓ Movimiento eliminado y existencias revertidas');
+        cargarMovimientos();
+      } else {
+        showToast('Error: ' + res.error, true);
+      }
+    })
+    .catch(() => showToast('Error de conexión', true));
+}
+
+function confirmarEliminarDesdeDetalle() {
+  if (!detMovId) return;
+  if (!confirm('¿Eliminar este movimiento?\n\nEsto revertirá los cambios de existencias que generó. Esta acción no se puede deshacer.')) {
+    return;
+  }
+  eliminarMovimiento(detMovId);
+  cerrarDetalle();
+}
 
 // ─── MODAL NUEVO ───
 function abrirNuevoMovimiento() {
