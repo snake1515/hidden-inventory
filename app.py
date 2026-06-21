@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import create_engine, text
 import bcrypt
 import httpx
-from pdf_ingreso import generar_pdf_ingreso
+from pdf_movimientos import generar_pdf_ingreso, generar_pdf_egreso, generar_pdf_traslado
 
 app = Flask(__name__)
 app.secret_key = "clave_secreta_inventario_2026"
@@ -486,10 +486,10 @@ def movimientos_crear():
                             WHERE codigo = :cod
                         """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
 
-            # ── Generar PDF para ingresos ──────────────────────────────────
+            # ── Generar PDF para ingresos, egresos y traslados ─────────────
             pdf_generado_path = None
-            if tipo == 'ingreso':
-                try:
+            try:
+                if tipo == 'ingreso':
                     items_pdf = [
                         {
                             "codigo":   str(i.get("codigo", "")),
@@ -511,16 +511,58 @@ def movimientos_crear():
                         "fecha_registro":  fecha_pdf,
                         "items":           items_pdf,
                     })
-                    filename = f"{consecutivo}.pdf"
-                    pdf_generado_path = subir_pdf_supabase(pdf_bytes, filename)
-                    if pdf_generado_path:
-                        conn.execute(text("""
-                            UPDATE movimientos SET pdf_generado = :p WHERE id = :id
-                        """), {"p": pdf_generado_path, "id": mov_id})
-                except Exception as pdf_err:
-                    import traceback
-                    print(f"[PDF] Error generando PDF: {pdf_err}")
-                    print(traceback.format_exc())
+
+                elif tipo == 'egreso':
+                    items_pdf = [
+                        {
+                            "codigo":   str(i.get("codigo", "")),
+                            "nombre":   str(i.get("nombre", "")),
+                            "cantidad": int(i.get("cantidad", 0)),
+                            "origen":   str(i.get("origen") or "bodega"),
+                        }
+                        for i in items
+                    ]
+                    pdf_bytes = generar_pdf_egreso({
+                        "consecutivo":       consecutivo,
+                        "motivo_egreso":     data.get('motivo_egreso', ''),
+                        "documento_soporte": data.get('documento', ''),
+                        "cliente":           data.get('cliente', ''),
+                        "comentario":        data.get('comentario', ''),
+                        "realizado_por":     usuario,
+                        "fecha_registro":    fecha_pdf,
+                        "items":             items_pdf,
+                    })
+
+                else:  # traslado
+                    items_pdf = [
+                        {
+                            "codigo":   str(i.get("codigo", "")),
+                            "nombre":   str(i.get("nombre", "")),
+                            "cantidad": int(i.get("cantidad", 0)),
+                            "origen":   str(i.get("origen") or "bodega"),
+                            "destino":  str(i.get("destino") or "almacen"),
+                        }
+                        for i in items
+                    ]
+                    pdf_bytes = generar_pdf_traslado({
+                        "consecutivo":       consecutivo,
+                        "documento_soporte": data.get('documento', ''),
+                        "comentario":        data.get('comentario', ''),
+                        "realizado_por":     usuario,
+                        "fecha_registro":    fecha_pdf,
+                        "items":             items_pdf,
+                    })
+
+                filename = f"{consecutivo}.pdf"
+                pdf_generado_path = subir_pdf_supabase(pdf_bytes, filename)
+                if pdf_generado_path:
+                    conn.execute(text("""
+                        UPDATE movimientos SET pdf_generado = :p WHERE id = :id
+                    """), {"p": pdf_generado_path, "id": mov_id})
+            except Exception as pdf_err:
+                import traceback
+                print(f"[PDF] Error generando PDF: {pdf_err}")
+                print(traceback.format_exc())
 
             conn.commit()
 
@@ -974,6 +1016,450 @@ def carga_csv_referencias_lote():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
