@@ -99,6 +99,7 @@
     {% if puede_editar_almacen %}<span class="badge badge-on">ALMACÉN ✓</span>{% endif %}
     {% if puede_ver_movimientos %}
     <a class="btn-logout" href="/movimientos" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Movimientos</a>
+    <a class="btn-logout" href="/kardex" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Kardex</a>
     {% endif %}
     <span>Usuario: <strong>{{ usuario }}</strong></span>
     <a class="btn-logout" href="/logout">Salir</a>
@@ -143,7 +144,6 @@
 <script>
 const PUEDE_ALMACEN = {{ 'true' if puede_editar_almacen else 'false' }};
 const PUEDE_BODEGA  = {{ 'true' if puede_editar_bodega else 'false' }};
-const PUEDE_EDITAR  = PUEDE_ALMACEN || PUEDE_BODEGA;
 const IS_ADMIN = {{ 'true' if es_admin else 'false' }};
 let debounceTimer;
 let datosActuales = [];
@@ -210,23 +210,19 @@ function renderTabla(data, actualizarStats=true) {
     const auditUser = item.modificado_por ? `<span class="user">${item.modificado_por}</span><br>` : '';
     const auditDate = item.ultima_mod_cantidad || '—';
 
-    const refCell = PUEDE_EDITAR
-      ? `<td><div class="editable">
+    const refCell = `<td><div class="editable">
       <input type="text" value="${item.referencia || ''}"
              onchange="guardarCampo('/actualizar_referencia','referencia','${item.rowid}',this)"
              onkeydown="if(event.key==='Enter') this.blur()"/>
       <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-    </div></td>`
-      : `<td class="locked">${item.referencia || ''}</td>`;
+    </div></td>`;
 
-    const marcaCell = PUEDE_EDITAR
-      ? `<td><div class="editable">
+    const marcaCell = `<td><div class="editable">
       <input type="text" value="${item.marca || ''}"
              onchange="guardarCampo('/actualizar_marca','marca','${item.rowid}',this)"
              onkeydown="if(event.key==='Enter') this.blur()"/>
       <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-    </div></td>`
-      : `<td class="locked">${item.marca || ''}</td>`;
+    </div></td>`;
 
     const almacenCell = PUEDE_ALMACEN
       ? `<td><div class="editable">
@@ -307,7 +303,6 @@ function showToast(msg, isError=false) {
 </script>
 </body>
 </html>
-
 
 
 
