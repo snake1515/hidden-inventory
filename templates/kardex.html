@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kardex — Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#0f0f0f; --surface:#1a1a1a; --surface2:#222; --border:#2a2a2a;
+    --accent:#e8ff3a; --text:#f0f0f0; --muted:#666;
+    --success:#3affa0; --danger:#ff5a5a; --warning:#ffb83a; --info:#6aa3ff;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+
+  header { background:var(--surface); border-bottom:1px solid var(--border);
+    padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between;
+    position:sticky; top:0; z-index:200; }
+  .logo-h { font-family:'Space Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--accent); }
+  .hlinks { display:flex; gap:12px; align-items:center; }
+  .hlinks a { color:var(--muted); text-decoration:none; font-size:11px; font-family:'Space Mono',monospace;
+    letter-spacing:1px; padding:6px 14px; border:1px solid var(--border); border-radius:2px; transition:all .2s; }
+  .hlinks a:hover { border-color:var(--accent); color:var(--accent); }
+  .usuario-tag { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  .main { max-width:1100px; margin:0 auto; padding:28px 24px; }
+
+  h2.titulo { font-family:'Space Mono',monospace; font-size:13px; letter-spacing:3px;
+    color:var(--accent); text-transform:uppercase; margin-bottom:20px; }
+
+  /* ── Buscador ── */
+  .search-wrap { position:relative; margin-bottom:24px; }
+  .search-wrap input { width:100%; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); padding:14px 18px 14px 44px; font-size:15px; font-family:'DM Sans',sans-serif;
+    outline:none; border-radius:2px; transition:border-color .2s; }
+  .search-wrap input:focus { border-color:var(--accent); }
+  .search-icon { position:absolute; left:16px; top:50%; transform:translateY(-50%);
+    color:var(--muted); font-size:16px; pointer-events:none; }
+  .search-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--surface);
+    border:1px solid var(--border); border-top:none; border-radius:0 0 4px 4px;
+    max-height:300px; overflow-y:auto; z-index:50; display:none; }
+  .search-dropdown.open { display:block; }
+  .search-item { padding:11px 16px; cursor:pointer; border-bottom:1px solid var(--border);
+    font-size:13px; transition:background .15s; }
+  .search-item:last-child { border-bottom:none; }
+  .search-item:hover { background:var(--surface2); }
+  .si-code { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); }
+  .si-stock { font-family:'Space Mono',monospace; font-size:10px; color:var(--accent); float:right; }
+
+  /* ── Tarjeta de producto seleccionado ── */
+  .prod-card { background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:20px 24px; margin-bottom:24px; display:none; }
+  .prod-card.show { display:block; }
+  .prod-header { display:flex; justify-content:space-between; align-items:flex-start;
+    margin-bottom:16px; gap:12px; }
+  .prod-nombre { font-size:16px; font-weight:500; }
+  .prod-meta { font-size:12px; color:var(--muted); margin-top:4px; font-family:'Space Mono',monospace; }
+  .btn-cerrar-prod { background:none; border:none; color:var(--muted); font-size:20px;
+    cursor:pointer; line-height:1; }
+  .btn-cerrar-prod:hover { color:var(--text); }
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .stat-box { background:var(--surface2); border-radius:4px; padding:12px 16px; }
+  .stat-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted);
+    font-family:'Space Mono',monospace; margin-bottom:4px; }
+  .stat-value { font-size:22px; font-weight:500; font-family:'Space Mono',monospace; }
+
+  /* ── Historial ── */
+  .hist-title { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted);
+    font-family:'Space Mono',monospace; margin:0 0 12px; }
+  .hist-list { display:flex; flex-direction:column; gap:8px; }
+  .hist-item { display:flex; align-items:center; gap:14px; padding:12px 16px;
+    background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    cursor:pointer; transition:background .15s; flex-wrap:wrap; }
+  .hist-item:hover { background:var(--surface2); }
+  .badge-tipo { display:inline-block; font-size:10px; font-family:'Space Mono',monospace;
+    padding:3px 10px; border-radius:20px; letter-spacing:1px; text-transform:uppercase; white-space:nowrap; }
+  .badge-ingreso  { background:rgba(58,255,160,.1); border:1px solid rgba(58,255,160,.3); color:var(--success); }
+  .badge-egreso   { background:rgba(255,90,90,.1);  border:1px solid rgba(255,90,90,.3);  color:var(--danger); }
+  .badge-traslado { background:rgba(255,184,58,.1); border:1px solid rgba(255,184,58,.3); color:var(--warning); }
+  .badge-csv      { background:rgba(106,163,255,.1); border:1px solid rgba(106,163,255,.3); color:var(--info); }
+  .hist-info { flex:1; min-width:140px; }
+  .hist-consec { font-size:13px; font-weight:500; }
+  .hist-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .hist-cant { font-family:'Space Mono',monospace; font-size:14px; font-weight:700; min-width:40px; text-align:right; }
+  .cant-pos { color:var(--success); }
+  .cant-neg { color:var(--danger); }
+  .hist-ubi { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace;
+    min-width:90px; text-align:right; white-space:nowrap; }
+
+  .empty { text-align:center; padding:60px 20px; color:var(--muted);
+    font-family:'Space Mono',monospace; font-size:12px; letter-spacing:2px; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border);
+    border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; vertical-align:middle; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Tabla general (sin búsqueda) ── */
+  .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:var(--surface); padding:11px 14px; text-align:left;
+    font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  tbody tr { border-bottom:1px solid var(--border); transition:background .15s; cursor:pointer; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:var(--surface2); }
+  td { padding:10px 14px; vertical-align:middle; }
+  .td-codigo { font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); }
+
+  /* ── Modal detalle de movimiento ── */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:1000;
+    display:none; align-items:flex-start; justify-content:center; overflow-y:auto; padding:32px 16px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:32px; width:100%; max-width:560px; position:relative; margin:auto; }
+  .modal-title { font-family:'Space Mono',monospace; font-size:13px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--accent); margin-bottom:20px; }
+  .modal-close { position:absolute; top:16px; right:16px; background:none; border:none;
+    color:var(--muted); font-size:22px; cursor:pointer; line-height:1; }
+  .modal-close:hover { color:var(--text); }
+  .det-row { display:flex; justify-content:space-between; padding:8px 0;
+    border-bottom:1px solid var(--border); font-size:13px; }
+  .det-row:last-child { border-bottom:none; }
+  .det-row span:first-child { color:var(--muted); font-size:11px; text-transform:uppercase;
+    letter-spacing:1px; font-family:'Space Mono',monospace; }
+  .modal-footer { display:flex; gap:12px; justify-content:flex-end; margin-top:20px;
+    border-top:1px solid var(--border); padding-top:16px; }
+  .btn { padding:9px 18px; font-size:11px; font-family:'Space Mono',monospace;
+    letter-spacing:1px; cursor:pointer; border-radius:2px; border:none; transition:all .2s; text-transform:uppercase; }
+  .btn-secondary { background:transparent; border:1px solid var(--border); color:var(--muted); }
+  .btn-secondary:hover { border-color:var(--text); color:var(--text); }
+  .btn-primary { background:var(--accent); color:#0f0f0f; font-weight:700; }
+  .btn-primary:hover { opacity:.85; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo-h">Kardex</span>
+  <div class="hlinks">
+    <span class="usuario-tag">{{ usuario }}</span>
+    <a href="/">← Inventario</a>
+    <a href="/movimientos">Movimientos</a>
+    {% if es_admin %}<a href="/admin/panel">Admin</a>{% endif %}
+    <a href="/logout">Salir</a>
+  </div>
+</header>
+
+<div class="main">
+  <h2 class="titulo">Historial de movimientos por producto</h2>
+
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="kx-search" placeholder="Buscar por nombre, código, referencia o marca..." autocomplete="off"/>
+    <div class="search-dropdown" id="kx-dropdown"></div>
+  </div>
+
+  <!-- ─── Tarjeta de producto seleccionado ─── -->
+  <div class="prod-card" id="prod-card">
+    <div class="prod-header">
+      <div>
+        <div class="prod-nombre" id="pc-nombre">—</div>
+        <div class="prod-meta" id="pc-meta">—</div>
+      </div>
+      <button class="btn-cerrar-prod" onclick="cerrarProducto()">×</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">Saldo bodega</div>
+        <div class="stat-value" id="pc-bodega">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Saldo almacén</div>
+        <div class="stat-value" id="pc-almacen">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Historial del producto seleccionado ─── -->
+  <div id="hist-wrap" style="display:none">
+    <div class="hist-title">Historial de movimientos</div>
+    <div class="hist-list" id="hist-list"></div>
+  </div>
+
+  <!-- ─── Tabla general (cuando no hay búsqueda) ─── -->
+  <div id="tabla-general-wrap">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Producto</th>
+            <th>Grupo</th>
+            <th>Bodega</th>
+            <th>Almacén</th>
+            <th>Último movimiento</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-general-body">
+          <tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modal detalle de movimiento ─── -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal">
+    <div class="modal-title">Detalle del movimiento</div>
+    <button class="modal-close" onclick="cerrarModalDetalle()">×</button>
+    <div id="modal-contenido"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModalDetalle()">Cerrar</button>
+      <button class="btn btn-primary" id="btn-ir-movimiento" onclick="irAMovimientos()">Ver en Movimientos</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" style="position:fixed;bottom:24px;right:24px;background:var(--surface);
+  border:1px solid var(--success);color:var(--success);padding:14px 20px;font-size:13px;
+  font-family:'Space Mono',monospace;border-radius:4px;opacity:0;transform:translateY(10px);
+  transition:all .3s;z-index:9999;pointer-events:none;max-width:420px;"></div>
+
+<script>
+let debounceTimer;
+let productoActual = null;
+let detalleMovActual = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarTablaGeneral();
+  document.addEventListener('click', e => {
+    if (!document.getElementById('kx-search').contains(e.target) &&
+        !document.getElementById('kx-dropdown').contains(e.target)) {
+      document.getElementById('kx-dropdown').classList.remove('open');
+    }
+  });
+});
+
+document.getElementById('kx-search').addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  const q = this.value.trim();
+  if (!q) {
+    document.getElementById('kx-dropdown').classList.remove('open');
+    return;
+  }
+  debounceTimer = setTimeout(() => buscarProductos(q), 280);
+});
+
+function buscarProductos(q) {
+  fetch('/kardex/buscar_productos?q=' + encodeURIComponent(q))
+    .then(r => r.json())
+    .then(data => {
+      const dd = document.getElementById('kx-dropdown');
+      if (!data.length) {
+        dd.innerHTML = '<div class="search-item" style="color:var(--muted)">Sin resultados</div>';
+        dd.classList.add('open');
+        return;
+      }
+      dd.innerHTML = data.map(p => `
+        <div class="search-item" onclick='seleccionarProducto(${JSON.stringify(p).replace(/'/g,"&apos;")})'>
+          <span class="si-code">${p.codigo}</span>
+          <span class="si-stock">B:${p.existencias_bodega ?? 0} / A:${p.existencias_almacen ?? 0}</span>
+          <div>${p.nombre}</div>
+          <div style="font-size:11px;color:var(--muted)">${[p.referencia,p.marca,p.grupo].filter(Boolean).join(' · ')}</div>
+        </div>`).join('');
+      dd.classList.add('open');
+    });
+}
+
+function seleccionarProducto(p) {
+  document.getElementById('kx-dropdown').classList.remove('open');
+  document.getElementById('kx-search').value = p.nombre;
+  productoActual = p.codigo;
+  cargarHistorial(p.codigo);
+}
+
+function cerrarProducto() {
+  productoActual = null;
+  document.getElementById('kx-search').value = '';
+  document.getElementById('prod-card').classList.remove('show');
+  document.getElementById('hist-wrap').style.display = 'none';
+  document.getElementById('tabla-general-wrap').style.display = 'block';
+}
+
+function cargarHistorial(codigo) {
+  document.getElementById('tabla-general-wrap').style.display = 'none';
+  document.getElementById('hist-wrap').style.display = 'block';
+  document.getElementById('hist-list').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+
+  fetch('/kardex/historial/' + encodeURIComponent(codigo))
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        showToast(data.error, true);
+        cerrarProducto();
+        return;
+      }
+      renderProductoCard(data.producto);
+      renderHistorial(data.historial);
+    });
+}
+
+function renderProductoCard(p) {
+  document.getElementById('prod-card').classList.add('show');
+  document.getElementById('pc-nombre').textContent = p.nombre;
+  document.getElementById('pc-meta').textContent =
+    `Código ${p.codigo}` + (p.referencia ? ` · Ref. ${p.referencia}` : '') + (p.marca ? ` · ${p.marca}` : '');
+  document.getElementById('pc-bodega').textContent  = p.existencias_bodega ?? 0;
+  document.getElementById('pc-almacen').textContent = p.existencias_almacen ?? 0;
+}
+
+const TIPO_LABEL = { ingreso:'Ingreso', egreso:'Egreso', traslado:'Traslado', csv:'CSV masivo' };
+
+function renderHistorial(historial) {
+  const list = document.getElementById('hist-list');
+  if (!historial.length) {
+    list.innerHTML = '<div class="empty">Sin movimientos registrados para este producto</div>';
+    return;
+  }
+  list.innerHTML = historial.map(m => {
+    const fecha = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'short', timeStyle:'short'});
+    let cantidadTxt, cantClase, ubiTxt;
+
+    if (m.tipo === 'ingreso' || m.tipo === 'csv') {
+      cantidadTxt = '+' + m.cantidad; cantClase = 'cant-pos';
+      ubiTxt = '→ ' + (m.ubicacion_destino === 'almacen' ? 'Almacén' : 'Bodega');
+    } else if (m.tipo === 'egreso') {
+      cantidadTxt = '-' + m.cantidad; cantClase = 'cant-neg';
+      ubiTxt = (m.ubicacion_origen === 'almacen' ? 'Almacén' : 'Bodega') + ' →';
+    } else {
+      cantidadTxt = m.cantidad; cantClase = '';
+      const o = m.ubicacion_origen === 'almacen' ? 'Alm.' : 'Bod.';
+      const d = m.ubicacion_destino === 'almacen' ? 'Alm.' : 'Bod.';
+      ubiTxt = `${o} → ${d}`;
+    }
+
+    const sub = m.tipo === 'ingreso' ? (m.proveedor || '—')
+              : m.tipo === 'egreso'  ? (m.motivo_egreso || '—')
+              : m.tipo === 'csv'     ? (m.documento || 'Carga masiva')
+              : '—';
+
+    return `<div class="hist-item" onclick="abrirDetalleMov(${m.id})">
+      <span class="badge-tipo badge-${m.tipo}">${TIPO_LABEL[m.tipo] || m.tipo}</span>
+      <div class="hist-info">
+        <div class="hist-consec">${m.consecutivo || ('#' + m.id)}</div>
+        <div class="hist-sub">${fecha} · ${sub} · ${m.realizado_por}</div>
+      </div>
+      <div class="hist-cant ${cantClase}">${cantidadTxt}</div>
+      <div class="hist-ubi">${ubiTxt}</div>
+    </div>`;
+  }).join('');
+}
+
+function abrirDetalleMov(id) {
+  detalleMovActual = id;
+  document.getElementById('modal-contenido').innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  document.getElementById('modal-detalle').classList.add('open');
+  fetch('/movimientos/detalle/' + id)
+    .then(r => r.json())
+    .then(m => {
+      if (m.error) {
+        document.getElementById('modal-contenido').innerHTML = `<p style="color:var(--danger)">${m.error}</p>`;
+        return;
+      }
+      const fecha = new Date(m.fecha).toLocaleString('es-CO', {dateStyle:'medium', timeStyle:'medium'});
+      document.getElementById('modal-contenido').innerHTML = `
+        <div class="det-row"><span>Consecutivo</span><span>${m.consecutivo || '#'+m.id}</span></div>
+        <div class="det-row"><span>Tipo</span><span class="badge-tipo badge-${m.tipo}">${TIPO_LABEL[m.tipo]||m.tipo}</span></div>
+        <div class="det-row"><span>Fecha</span><span>${fecha}</span></div>
+        <div class="det-row"><span>Realizado por</span><span>${m.realizado_por}</span></div>
+        ${m.documento ? `<div class="det-row"><span>Documento</span><span>${m.documento}</span></div>` : ''}
+        ${m.comentario ? `<div class="det-row"><span>Comentario</span><span>${m.comentario}</span></div>` : ''}
+      `;
+    });
+}
+
+function cerrarModalDetalle() {
+  document.getElementById('modal-detalle').classList.remove('open');
+  detalleMovActual = null;
+}
+
+function irAMovimientos() {
+  window.location.href = '/movimientos';
+}
+
+// ─── Tabla general (sin búsqueda) ───
+function cargarTablaGeneral() {
+  fetch('/kardex/lista_productos')
+    .then(r => r.json())
+    .then(renderTablaGeneral);
+}
+
+function renderTablaGeneral(data) {
+  const tbody = document.getElementById('tabla-general-body');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin productos en el inventario</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(p => {
+    const ultimo = p.ultimo_tipo
+      ? `<span class="badge-tipo badge-${p.ultimo_tipo}">${TIPO_LABEL[p.ultimo_tipo] || p.ultimo_tipo}</span> ${p.ultimo_consecutivo || ''}`
+      : '<span style="color:var(--muted);font-size:12px">Sin movimientos</span>';
+    return `<tr onclick='seleccionarProducto(${JSON.stringify({codigo:p.codigo,nombre:p.nombre}).replace(/'/g,"&apos;")})'>
+      <td class="td-codigo">${p.codigo}</td>
+      <td>${p.nombre}</td>
+      <td style="font-size:11px;color:var(--muted);text-transform:uppercase">${p.grupo}</td>
+      <td style="font-family:'Space Mono',monospace">${p.existencias_bodega ?? 0}</td>
+      <td style="font-family:'Space Mono',monospace">${p.existencias_almacen ?? 0}</td>
+      <td>${ultimo}</td>
+    </tr>`;
+  }).join('');
+}
+
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isError ? 'var(--danger)' : 'var(--success)';
+  t.style.color = isError ? 'var(--danger)' : 'var(--success)';
+  t.style.opacity = '1'; t.style.transform = 'translateY(0)';
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; }, 3500);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarModalDetalle(); });
+</script>
+</body>
+</html>
