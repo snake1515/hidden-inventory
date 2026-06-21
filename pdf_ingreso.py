@@ -65,9 +65,12 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
             Paragraph('<font color="#aaaaaa"><i>[ Logo y datos de la empresa ]</i></font>',
                       _estilo("logo_hint", fontSize=9, textColor=colors.HexColor("#aaaaaa"),
                               alignment=TA_LEFT)),
-            Paragraph(f'<font size="9" color="#888888">INGRESO DE INVENTARIO</font><br/>'
-                      f'<font size="22" color="#1a1a1a"><b>{datos.get("consecutivo","—")}</b></font>',
-                      _estilo("consec", alignment=TA_RIGHT))
+            Table([
+                [Paragraph('<font size="8" color="#888888">INGRESO DE INVENTARIO</font>',
+                           _estilo("ing_label", alignment=TA_RIGHT))],
+                [Paragraph(f'<font size="24" color="#1a1a1a"><b>{datos.get("consecutivo","—")}</b></font>',
+                           _estilo("consec", alignment=TA_RIGHT))],
+            ], colWidths=[8*cm])
         ]
     ]
     logo_tbl = Table(logo_data, colWidths=[10*cm, 8*cm])
@@ -250,6 +253,10 @@ def generar_pdf_ingreso(datos: dict) -> bytes:
         ("TOPPADDING", (0,0), (-1,-1), 6),
     ]))
     story.append(pie_tbl)
+
+    doc.build(story)
+    return buf.getvalue()
+
 
     doc.build(story)
     return buf.getvalue()
