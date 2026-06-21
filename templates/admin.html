@@ -179,9 +179,12 @@
         </div>
       </div>
       <div class="permisos-row">
-        <label class="checkbox-label"><input type="checkbox" id="nu-bodega"/> Puede editar Bodega</label>
-        <label class="checkbox-label"><input type="checkbox" id="nu-almacen"/> Puede editar Almacén</label>
-        <label class="checkbox-label"><input type="checkbox" id="nu-movimientos"/> Puede ver Movimientos</label>
+        <label class="checkbox-label" style="color:var(--accent)"><input type="checkbox" id="nu-consulta" onchange="toggleSoloConsulta('nu',this.checked)"/> Perfil: Solo consulta</label>
+      </div>
+      <div class="permisos-row">
+        <label class="checkbox-label"><input type="checkbox" id="nu-bodega" onchange="desmarcarConsultaSi('nu')"/> Puede editar Bodega</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-almacen" onchange="desmarcarConsultaSi('nu')"/> Puede editar Almacén</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-movimientos" onchange="desmarcarConsultaSi('nu')"/> Puede ver Movimientos</label>
       </div>
       <button class="btn btn-primary" onclick="crearUsuario()">+ Crear usuario</button>
     </div>
@@ -375,9 +378,12 @@ SKU001,Aceite Motor 10W40,REF-001,HONDA,ACEITES,24,12</pre>
       </div>
     </div>
     <div class="permisos-row">
-      <label class="checkbox-label"><input type="checkbox" id="edit-bodega"/> Puede editar Bodega</label>
-      <label class="checkbox-label"><input type="checkbox" id="edit-almacen"/> Puede editar Almacén</label>
-      <label class="checkbox-label"><input type="checkbox" id="edit-movimientos"/> Puede ver Movimientos</label>
+      <label class="checkbox-label" style="color:var(--accent)"><input type="checkbox" id="edit-consulta" onchange="toggleSoloConsulta('edit',this.checked)"/> Perfil: Solo consulta</label>
+    </div>
+    <div class="permisos-row">
+      <label class="checkbox-label"><input type="checkbox" id="edit-bodega" onchange="desmarcarConsultaSi('edit')"/> Puede editar Bodega</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-almacen" onchange="desmarcarConsultaSi('edit')"/> Puede editar Almacén</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-movimientos" onchange="desmarcarConsultaSi('edit')"/> Puede ver Movimientos</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-activo"/> Usuario activo</label>
     </div>
     <div class="modal-footer">
@@ -444,6 +450,18 @@ function setGrupos(containerId, grupos) {
   });
 }
 
+// ─── PERFIL SOLO CONSULTA ───
+function toggleSoloConsulta(prefix, marcado) {
+  if (marcado) {
+    ['bodega','almacen','movimientos'].forEach(p => {
+      document.getElementById(`${prefix}-${p}`).checked = false;
+    });
+  }
+}
+function desmarcarConsultaSi(prefix) {
+  document.getElementById(`${prefix}-consulta`).checked = false;
+}
+
 // ─── USUARIOS ───
 function crearUsuario() {
   const nombre = document.getElementById('nu-nombre').value.trim();
@@ -467,6 +485,7 @@ function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos) {
   document.getElementById('edit-bodega').checked = bodega;
   document.getElementById('edit-activo').checked = activo;
   document.getElementById('edit-movimientos').checked = movimientos || false;
+  document.getElementById('edit-consulta').checked = !almacen && !bodega && !movimientos;
   setGrupos('edit-grupos', gruposStr ? gruposStr.split(', ').map(g=>g.trim()).filter(Boolean) : []);
   document.getElementById('modal-editar').classList.add('open');
 }
@@ -690,4 +709,6 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){cerrarModal();cer
 </script>
 </body>
 </html>
+
+
 
