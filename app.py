@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import create_engine, text
 import bcrypt
 import httpx
-from pdf_ingreso import generar_pdf_ingreso
+from pdf_movimientos import generar_pdf_ingreso, generar_pdf_egreso, generar_pdf_traslado
 
 app = Flask(__name__)
 app.secret_key = "clave_secreta_inventario_2026"
@@ -321,7 +321,7 @@ def movimientos_lista():
     sql = text(f"""
         SELECT m.id, m.tipo, m.consecutivo, m.documento, m.comentario,
                m.pdf_path, m.pdf_generado, m.proveedor, m.numero_factura,
-               m.motivo_egreso, m.realizado_por, m.fecha,
+               m.motivo_egreso, m.cliente, m.realizado_por, m.fecha,
                COUNT(mi.id) as num_items,
                SUM(mi.cantidad) as total_unidades
         FROM movimientos m
@@ -352,7 +352,7 @@ def movimiento_detalle(mov_id):
             SELECT id, tipo, consecutivo, documento, comentario,
                    pdf_path, pdf_generado,
                    proveedor, numero_factura, fecha_documento, fecha_recepcion,
-                   motivo_egreso, realizado_por, fecha
+                   motivo_egreso, cliente, realizado_por, fecha
             FROM movimientos WHERE id = :id
         """), {"id": mov_id}).fetchone()
         if not mov:
@@ -415,11 +415,11 @@ def movimientos_crear():
                 INSERT INTO movimientos
                     (tipo, consecutivo, documento, comentario, pdf_path,
                      proveedor, numero_factura, fecha_documento, fecha_recepcion,
-                     motivo_egreso, realizado_por, fecha)
+                     motivo_egreso, cliente, realizado_por, fecha)
                 VALUES
                     (:tipo, :consec, :doc, :com, :pdf,
                      :prov, :nfac, :fdoc, :frec,
-                     :motivo, :usuario, NOW())
+                     :motivo, :cliente, :usuario, NOW())
                 RETURNING id
             """), {
                 "tipo":   tipo,
@@ -432,6 +432,7 @@ def movimientos_crear():
                 "fdoc":   data.get('fecha_documento') or None,
                 "frec":   data.get('fecha_recepcion') or None,
                 "motivo": data.get('motivo_egreso', '').strip() or None,
+                "cliente": data.get('cliente', '').strip() or None,
                 "usuario": usuario
             })
             mov_id = row.fetchone().id
@@ -482,19 +483,21 @@ def movimientos_crear():
                             WHERE codigo = :cod
                         """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
 
-            # ── Generar PDF para ingresos ──────────────────────────────────
+            # ── Generar PDF del comprobante (ingreso, egreso o traslado) ────
             pdf_generado_path = None
-            if tipo == 'ingreso':
-                try:
-                    items_pdf = [
-                        {
-                            "codigo":   str(i.get("codigo", "")),
-                            "nombre":   str(i.get("nombre", "")),
-                            "cantidad": int(i.get("cantidad", 0)),
-                            "destino":  str(i.get("destino") or "bodega"),
-                        }
-                        for i in items
-                    ]
+            try:
+                items_pdf = [
+                    {
+                        "codigo":   str(i.get("codigo", "")),
+                        "nombre":   str(i.get("nombre", "")),
+                        "cantidad": int(i.get("cantidad", 0)),
+                        "origen":   str(i.get("origen") or "bodega"),
+                        "destino":  str(i.get("destino") or "bodega"),
+                    }
+                    for i in items
+                ]
+
+                if tipo == 'ingreso':
                     pdf_bytes = generar_pdf_ingreso({
                         "consecutivo":     consecutivo,
                         "proveedor":       data.get('proveedor', ''),
@@ -507,16 +510,37 @@ def movimientos_crear():
                         "fecha_registro":  fecha_pdf,
                         "items":           items_pdf,
                     })
-                    filename = f"{consecutivo}.pdf"
-                    pdf_generado_path = subir_pdf_supabase(pdf_bytes, filename)
-                    if pdf_generado_path:
-                        conn.execute(text("""
-                            UPDATE movimientos SET pdf_generado = :p WHERE id = :id
-                        """), {"p": pdf_generado_path, "id": mov_id})
-                except Exception as pdf_err:
-                    import traceback
-                    print(f"[PDF] Error generando PDF: {pdf_err}")
-                    print(traceback.format_exc())
+                elif tipo == 'egreso':
+                    pdf_bytes = generar_pdf_egreso({
+                        "consecutivo":       consecutivo,
+                        "motivo_egreso":     data.get('motivo_egreso', ''),
+                        "cliente":           data.get('cliente', ''),
+                        "documento_soporte": data.get('documento', ''),
+                        "comentario":        data.get('comentario', ''),
+                        "realizado_por":     usuario,
+                        "fecha_registro":    fecha_pdf,
+                        "items":             items_pdf,
+                    })
+                else:  # traslado
+                    pdf_bytes = generar_pdf_traslado({
+                        "consecutivo":       consecutivo,
+                        "documento_soporte": data.get('documento', ''),
+                        "comentario":        data.get('comentario', ''),
+                        "realizado_por":     usuario,
+                        "fecha_registro":    fecha_pdf,
+                        "items":             items_pdf,
+                    })
+
+                filename = f"{consecutivo}.pdf"
+                pdf_generado_path = subir_pdf_supabase(pdf_bytes, filename)
+                if pdf_generado_path:
+                    conn.execute(text("""
+                        UPDATE movimientos SET pdf_generado = :p WHERE id = :id
+                    """), {"p": pdf_generado_path, "id": mov_id})
+            except Exception as pdf_err:
+                import traceback
+                print(f"[PDF] Error generando PDF: {pdf_err}")
+                print(traceback.format_exc())
 
             conn.commit()
 
@@ -575,75 +599,6 @@ def movimientos_pdf_generado(mov_id):
         return "Error descargando PDF", 500
     nombre = f"{row.consecutivo or 'ingreso'}.pdf"
     return send_file(io.BytesIO(data), mimetype='application/pdf', download_name=nombre)
-
-
-@app.route('/movimientos/eliminar/<int:mov_id>', methods=['POST'])
-@movimientos_required
-def movimientos_eliminar(mov_id):
-    """Elimina un movimiento (solo admin). Si el movimiento afectó existencias,
-    revierte el ajuste antes de borrar el registro."""
-    if not session.get('admin'):
-        return jsonify({'success': False, 'error': 'Solo el administrador puede eliminar movimientos'}), 403
-
-    fecha_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    usuario   = get_current_user()
-
-    try:
-        with engine.connect() as conn:
-            mov = conn.execute(
-                text("SELECT id, tipo FROM movimientos WHERE id = :id"), {"id": mov_id}
-            ).fetchone()
-            if not mov:
-                return jsonify({'success': False, 'error': 'Movimiento no encontrado'}), 404
-
-            tipo  = mov.tipo
-            items = conn.execute(text("""
-                SELECT producto_codigo, cantidad, ubicacion_origen, ubicacion_destino
-                FROM movimiento_items WHERE movimiento_id = :id
-            """), {"id": mov_id}).fetchall()
-
-            # Revertir existencias (lógica inversa exacta a movimientos_crear)
-            for item in items:
-                codigo   = item.producto_codigo
-                cantidad = item.cantidad
-                origen   = item.ubicacion_origen
-                destino  = item.ubicacion_destino
-
-                if tipo == 'ingreso' and destino:
-                    col = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
-                    conn.execute(text(f"""
-                        UPDATE inventario SET {col} = GREATEST({col} - :c, 0),
-                            ultima_mod_cantidad = :f, modificado_por = :u
-                        WHERE codigo = :cod
-                    """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
-
-                elif tipo == 'egreso' and origen:
-                    col = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
-                    conn.execute(text(f"""
-                        UPDATE inventario SET {col} = {col} + :c,
-                            ultima_mod_cantidad = :f, modificado_por = :u
-                        WHERE codigo = :cod
-                    """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
-
-                elif tipo == 'traslado' and origen and destino:
-                    col_out = 'existencias_bodega' if origen == 'bodega' else 'existencias_almacen'
-                    col_in  = 'existencias_bodega' if destino == 'bodega' else 'existencias_almacen'
-                    if col_out != col_in:
-                        conn.execute(text(f"""
-                            UPDATE inventario
-                            SET {col_out} = {col_out} + :c,
-                                {col_in}  = GREATEST({col_in} - :c, 0),
-                                ultima_mod_cantidad = :f, modificado_por = :u
-                            WHERE codigo = :cod
-                        """), {"c": cantidad, "f": fecha_str, "u": usuario, "cod": codigo})
-
-            conn.execute(text("DELETE FROM movimiento_items WHERE movimiento_id = :id"), {"id": mov_id})
-            conn.execute(text("DELETE FROM movimientos WHERE id = :id"), {"id": mov_id})
-            conn.commit()
-
-        return jsonify({'success': True})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/movimientos/buscar_productos')
@@ -970,6 +925,154 @@ def carga_csv_referencias_lote():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
