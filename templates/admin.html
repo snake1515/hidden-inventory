@@ -179,12 +179,9 @@
         </div>
       </div>
       <div class="permisos-row">
-        <label class="checkbox-label" style="color:var(--accent)"><input type="checkbox" id="nu-consulta" onchange="toggleSoloConsulta('nu',this.checked)"/> Perfil: Solo consulta</label>
-      </div>
-      <div class="permisos-row">
-        <label class="checkbox-label"><input type="checkbox" id="nu-bodega" onchange="desmarcarConsultaSi('nu')"/> Puede editar Bodega</label>
-        <label class="checkbox-label"><input type="checkbox" id="nu-almacen" onchange="desmarcarConsultaSi('nu')"/> Puede editar Almacén</label>
-        <label class="checkbox-label"><input type="checkbox" id="nu-movimientos" onchange="desmarcarConsultaSi('nu')"/> Puede ver Movimientos</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-bodega"/> Puede editar Bodega</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-almacen"/> Puede editar Almacén</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-movimientos"/> Puede ver Movimientos</label>
       </div>
       <button class="btn btn-primary" onclick="crearUsuario()">+ Crear usuario</button>
     </div>
@@ -378,12 +375,9 @@ SKU001,Aceite Motor 10W40,REF-001,HONDA,ACEITES,24,12</pre>
       </div>
     </div>
     <div class="permisos-row">
-      <label class="checkbox-label" style="color:var(--accent)"><input type="checkbox" id="edit-consulta" onchange="toggleSoloConsulta('edit',this.checked)"/> Perfil: Solo consulta</label>
-    </div>
-    <div class="permisos-row">
-      <label class="checkbox-label"><input type="checkbox" id="edit-bodega" onchange="desmarcarConsultaSi('edit')"/> Puede editar Bodega</label>
-      <label class="checkbox-label"><input type="checkbox" id="edit-almacen" onchange="desmarcarConsultaSi('edit')"/> Puede editar Almacén</label>
-      <label class="checkbox-label"><input type="checkbox" id="edit-movimientos" onchange="desmarcarConsultaSi('edit')"/> Puede ver Movimientos</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-bodega"/> Puede editar Bodega</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-almacen"/> Puede editar Almacén</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-movimientos"/> Puede ver Movimientos</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-activo"/> Usuario activo</label>
     </div>
     <div class="modal-footer">
@@ -450,18 +444,6 @@ function setGrupos(containerId, grupos) {
   });
 }
 
-// ─── PERFIL SOLO CONSULTA ───
-function toggleSoloConsulta(prefix, marcado) {
-  if (marcado) {
-    ['bodega','almacen','movimientos'].forEach(p => {
-      document.getElementById(`${prefix}-${p}`).checked = false;
-    });
-  }
-}
-function desmarcarConsultaSi(prefix) {
-  document.getElementById(`${prefix}-consulta`).checked = false;
-}
-
 // ─── USUARIOS ───
 function crearUsuario() {
   const nombre = document.getElementById('nu-nombre').value.trim();
@@ -485,7 +467,6 @@ function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos) {
   document.getElementById('edit-bodega').checked = bodega;
   document.getElementById('edit-activo').checked = activo;
   document.getElementById('edit-movimientos').checked = movimientos || false;
-  document.getElementById('edit-consulta').checked = !almacen && !bodega && !movimientos;
   setGrupos('edit-grupos', gruposStr ? gruposStr.split(', ').map(g=>g.trim()).filter(Boolean) : []);
   document.getElementById('modal-editar').classList.add('open');
 }
@@ -642,6 +623,7 @@ function handleDropRef(e) {
 async function procesarCSV(fileId, endpoint, progressId, labelId, pctId, fillId, resultId, btnId, campoConteo) {
   const file = document.getElementById(fileId).files[0]; if (!file) return;
   const btn = document.getElementById(btnId); btn.disabled=true; btn.style.opacity='0.5';
+  const esCargaPrincipal = endpoint === '/admin/carga_csv_lote';
 
   // Leer archivo siempre con FileReader para máxima compatibilidad
   const texto = await new Promise((resolve, reject) => {
@@ -665,9 +647,73 @@ async function procesarCSV(fileId, endpoint, progressId, labelId, pctId, fillId,
     const obj = {}; headers.forEach((h,idx)=>{ obj[h]=(cols[idx]||'').trim(); });
     if (obj.codigo) filas.push(obj);
   }
+
+  document.getElementById(progressId).classList.add('show');
+
+  // La carga principal usa un flujo de 3 pasos para soportar archivos grandes
+  // sin saturar Render: 1) crear movimiento padre, 2) subir cada lote como
+  // movimiento hijo (CSV-0007-A, CSV-0007-B...), 3) generar el PDF final
+  // que resume TODOS los lotes juntos.
+  if (esCargaPrincipal) {
+    let movPadreId, consecutivoPadre;
+    try {
+      const resInit = await fetch('/admin/iniciar_carga_csv', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({nombre_archivo: file.name})});
+      const dataInit = await resInit.json();
+      if (!dataInit.success) { showToast('Error iniciando carga: '+dataInit.error, true); btn.disabled=false; btn.style.opacity='1'; return; }
+      movPadreId = dataInit.mov_padre_id;
+      consecutivoPadre = dataInit.consecutivo;
+    } catch(err) {
+      showToast('Error de conexión iniciando la carga', true);
+      btn.disabled=false; btn.style.opacity='1';
+      return;
+    }
+
+    const LOTE = 500; const totalLotes = Math.ceil(filas.length/LOTE);
+    let totalOk=0, totalOmit=0;
+    for (let i=0; i<totalLotes; i++) {
+      const pct = Math.round((i/totalLotes)*90); // deja 10% para el cierre
+      document.getElementById(fillId).style.width=pct+'%';
+      document.getElementById(pctId).textContent=pct+'%';
+      document.getElementById(labelId).textContent=`Lote ${i+1} de ${totalLotes}...`;
+      try {
+        const res = await fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            filas: filas.slice(i*LOTE,(i+1)*LOTE),
+            mov_padre_id: movPadreId,
+            indice_lote: i,
+          })});
+        const data = await res.json();
+        if (data.success) { totalOk+=data.insertados||0; totalOmit+=data.omitidos||0; }
+        else { showToast('Error lote '+(i+1)+': '+data.error,true); break; }
+      } catch(err) { showToast('Error de conexión en lote '+(i+1),true); break; }
+    }
+
+    document.getElementById(labelId).textContent='Generando comprobante...';
+    let dataFin = {};
+    try {
+      const resFin = await fetch('/admin/finalizar_carga_csv', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({mov_padre_id: movPadreId})});
+      dataFin = await resFin.json();
+    } catch(err) {
+      showToast('Carga completa, pero falló la generación del PDF final', true);
+    }
+
+    document.getElementById(fillId).style.width='100%';
+    document.getElementById(pctId).textContent='100%';
+    document.getElementById(labelId).textContent='¡Completado!';
+    const div = document.getElementById(resultId);
+    div.style.display='block'; div.className='csv-result ok';
+    const label = `Insertados: ${totalOk} | Omitidos: ${totalOmit}`;
+    div.textContent = `✓ ${label} — Movimiento ${consecutivoPadre}`;
+    showToast(`✓ ${totalOk} productos cargados — ${consecutivoPadre}`);
+    btn.disabled=false; btn.style.opacity='1';
+    return;
+  }
+
+  // Flujo original por lotes (carga de referencias u otros endpoints)
   const LOTE = 500; const totalLotes = Math.ceil(filas.length/LOTE);
   let totalOk=0, totalOmit=0;
-  document.getElementById(progressId).classList.add('show');
   for (let i=0; i<totalLotes; i++) {
     const pct = Math.round((i/totalLotes)*100);
     document.getElementById(fillId).style.width=pct+'%';
@@ -709,6 +755,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){cerrarModal();cer
 </script>
 </body>
 </html>
+
 
 
 
