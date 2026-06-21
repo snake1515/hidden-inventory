@@ -764,12 +764,19 @@ function abrirNuevoProd(q) {
   document.getElementById('prod-dropdown').classList.remove('open');
   // Pre-rellenar nombre si q parece un nombre
   document.getElementById('np-nombre').value = q;
-  document.getElementById('np-codigo').value  = '';
+  document.getElementById('np-codigo').value  = '...';
   document.getElementById('np-referencia').value = '';
   document.getElementById('np-marca').value   = '';
   document.getElementById('np-grupo').value   = '';
   document.getElementById('nuevo-prod-form').classList.add('open');
   document.getElementById('prod-search').value = '';
+  fetch('/movimientos/siguiente_codigo')
+    .then(r => r.json())
+    .then(res => {
+      if (res.siguiente_codigo) document.getElementById('np-codigo').value = res.siguiente_codigo;
+      else document.getElementById('np-codigo').value = '';
+    })
+    .catch(() => { document.getElementById('np-codigo').value = ''; });
 }
 function cerrarNuevoProd() {
   document.getElementById('nuevo-prod-form').classList.remove('open');
@@ -973,5 +980,6 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
 
 
