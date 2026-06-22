@@ -145,6 +145,7 @@
 const PUEDE_ALMACEN = {{ 'true' if puede_editar_almacen else 'false' }};
 const PUEDE_BODEGA  = {{ 'true' if puede_editar_bodega else 'false' }};
 const IS_ADMIN = {{ 'true' if es_admin else 'false' }};
+const PUEDE_EDITAR_ALGO = PUEDE_ALMACEN || PUEDE_BODEGA || IS_ADMIN; // referencia/marca solo si tiene algún permiso de edición
 let debounceTimer;
 let datosActuales = [];
 let sortCol = null;
@@ -210,19 +211,23 @@ function renderTabla(data, actualizarStats=true) {
     const auditUser = item.modificado_por ? `<span class="user">${item.modificado_por}</span><br>` : '';
     const auditDate = item.ultima_mod_cantidad || '—';
 
-    const refCell = `<td><div class="editable">
-      <input type="text" value="${item.referencia || ''}"
-             onchange="guardarCampo('/actualizar_referencia','referencia','${item.rowid}',this)"
-             onkeydown="if(event.key==='Enter') this.blur()"/>
-      <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-    </div></td>`;
+    const refCell = PUEDE_EDITAR_ALGO
+      ? `<td><div class="editable">
+          <input type="text" value="${item.referencia || ''}"
+                 onchange="guardarCampo('/actualizar_referencia','referencia','${item.rowid}',this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
+        </div></td>`
+      : `<td class="locked">${item.referencia || ''}</td>`;
 
-    const marcaCell = `<td><div class="editable">
-      <input type="text" value="${item.marca || ''}"
-             onchange="guardarCampo('/actualizar_marca','marca','${item.rowid}',this)"
-             onkeydown="if(event.key==='Enter') this.blur()"/>
-      <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-    </div></td>`;
+    const marcaCell = PUEDE_EDITAR_ALGO
+      ? `<td><div class="editable">
+          <input type="text" value="${item.marca || ''}"
+                 onchange="guardarCampo('/actualizar_marca','marca','${item.rowid}',this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
+        </div></td>`
+      : `<td class="locked">${item.marca || ''}</td>`;
 
     const almacenCell = PUEDE_ALMACEN
       ? `<td><div class="editable">
@@ -303,6 +308,15 @@ function showToast(msg, isError=false) {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 
