@@ -329,14 +329,15 @@ def generar_pdf_traslado(datos: dict) -> bytes:
 # ─────────────────────────────────────────────────────────────────────────────
 def generar_pdf_csv(datos: dict) -> bytes:
     """
-    PDF de carga masiva CSV. Tiene su propio layout porque incluye
-    dos tablas: productos agregados y productos rechazados (con motivo).
+    PDF de carga masiva CSV.
+    Muestra resumen de totales y tabla de rechazados con motivo.
+    No lista los productos agregados para evitar timeouts en cargas grandes.
 
     datos = {
         consecutivo, archivo_nombre, comentario,
         realizado_por, fecha_registro,
-        agregados:  [{codigo, nombre, grupo, existencias_bodega, existencias_almacen}],
-        rechazados: [{fila, motivo}]   # fila = dict crudo de la fila del CSV
+        agregados:  int (total de productos insertados),
+        rechazados: [{fila, motivo}]
     }
     """
     buf = io.BytesIO()
@@ -347,8 +348,11 @@ def generar_pdf_csv(datos: dict) -> bytes:
     )
     story = []
 
-    agregados  = datos.get("agregados", [])
-    rechazados = datos.get("rechazados", [])
+    # agregados puede llegar como int o como lista (compatibilidad)
+    _agr = datos.get("agregados", 0)
+    total_agregados  = _agr if isinstance(_agr, int) else len(_agr)
+    rechazados       = datos.get("rechazados", [])
+    total_rechazados = len(rechazados)
 
     # ── 1. LOGO + TÍTULO/CONSECUTIVO ─────────────────────────────────────────
     logo_data = [
@@ -380,9 +384,9 @@ def generar_pdf_csv(datos: dict) -> bytes:
     # ── 2. CABECERA ───────────────────────────────────────────────────────────
     cab_rows = [
         [lbl("Archivo"), val(datos.get("archivo_nombre") or "—"),
-         lbl("Total filas"), val(str(len(agregados) + len(rechazados)))],
-        [lbl("Agregados"), val(str(len(agregados))),
-         lbl("Rechazados"), val(str(len(rechazados)))],
+         lbl("Total procesadas"), val(str(total_agregados + total_rechazados))],
+        [lbl("Productos agregados"), val(str(total_agregados)),
+         lbl("Productos omitidos"), val(str(total_rechazados))],
         [lbl("Registrado por"), val(datos.get("realizado_por") or "—"),
          lbl("Fecha y hora"), val(datos.get("fecha_registro") or "—")],
     ]
@@ -401,47 +405,11 @@ def generar_pdf_csv(datos: dict) -> bytes:
     story.append(cab_tbl)
     story.append(Spacer(1, 0.45*cm))
 
-    # ── 3. TABLA DE PRODUCTOS AGREGADOS ──────────────────────────────────────
+    # ── 3. RESUMEN DE AGREGADOS ───────────────────────────────────────────────
+    color_res = "#1a7a50" if total_agregados > 0 else "#888888"
     story.append(Paragraph(
-        '<font size="8" color="#888888">PRODUCTOS AGREGADOS</font>',
-        _estilo("sec_title", spaceBefore=4, spaceAfter=6)))
-
-    if agregados:
-        thead = [
-            Paragraph('<font size="8" color="#ffffff"><b>#</b></font>',        _estilo("th", alignment=TA_CENTER)),
-            Paragraph('<font size="8" color="#ffffff"><b>CÓDIGO</b></font>',   _estilo("th", alignment=TA_LEFT)),
-            Paragraph('<font size="8" color="#ffffff"><b>PRODUCTO</b></font>',  _estilo("th", alignment=TA_LEFT)),
-            Paragraph('<font size="8" color="#ffffff"><b>GRUPO</b></font>',     _estilo("th", alignment=TA_LEFT)),
-            Paragraph('<font size="8" color="#ffffff"><b>BODEGA</b></font>',   _estilo("th", alignment=TA_CENTER)),
-            Paragraph('<font size="8" color="#ffffff"><b>ALMACÉN</b></font>',  _estilo("th", alignment=TA_CENTER)),
-        ]
-        tabla_agr = [thead]
-        for n, p in enumerate(agregados, 1):
-            tabla_agr.append([
-                Paragraph(str(n), _estilo("td_num", alignment=TA_CENTER, textColor=GRIS_TEXTO, fontSize=9)),
-                Paragraph(str(p.get("codigo","")), _estilo("td_cod", fontSize=9, textColor=GRIS_TEXTO, fontName="Helvetica-Oblique")),
-                Paragraph(str(p.get("nombre","")), _estilo("td_nom", fontSize=9)),
-                Paragraph(str(p.get("grupo","")),  _estilo("td_grp", fontSize=9, textColor=GRIS_TEXTO)),
-                Paragraph(str(p.get("existencias_bodega",0)),  _estilo("td_b", alignment=TA_CENTER, fontSize=9, fontName="Helvetica-Bold")),
-                Paragraph(str(p.get("existencias_almacen",0)), _estilo("td_a", alignment=TA_CENTER, fontSize=9, fontName="Helvetica-Bold")),
-            ])
-        agr_tbl = Table(tabla_agr, colWidths=[0.8*cm, 2.5*cm, 6.7*cm, 3*cm, 2.5*cm, 2.5*cm])
-        n_rows = len(tabla_agr)
-        agr_tbl.setStyle(TableStyle([
-            ("BACKGROUND",     (0,0), (-1,0), NEGRO),
-            ("ROWBACKGROUNDS", (0,1), (-1,n_rows-1), [BLANCO, GRIS_CLARO]),
-            ("BOX",            (0,0), (-1,-1), 0.5, BORDE),
-            ("INNERGRID",      (0,0), (-1,-1), 0.3, BORDE),
-            ("TOPPADDING",     (0,0), (-1,-1), 6),
-            ("BOTTOMPADDING",  (0,0), (-1,-1), 6),
-            ("LEFTPADDING",    (0,0), (-1,-1), 7),
-            ("RIGHTPADDING",   (0,0), (-1,-1), 7),
-            ("VALIGN",         (0,0), (-1,-1), "MIDDLE"),
-        ]))
-        story.append(agr_tbl)
-    else:
-        story.append(Paragraph('<font size="9" color="#888888">Ningún producto fue agregado en esta carga.</font>',
-                                _estilo("sin_agr")))
+        f'<font size="13" color="{color_res}"><b>✓ {total_agregados} producto(s) agregado(s) al inventario exitosamente.</b></font>',
+        _estilo("resumen_agr", spaceBefore=8, spaceAfter=12, leading=20)))
 
     # ── 4. TABLA DE PRODUCTOS RECHAZADOS ─────────────────────────────────────
     if rechazados:
@@ -520,5 +488,8 @@ def generar_pdf_csv(datos: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+
 
 
