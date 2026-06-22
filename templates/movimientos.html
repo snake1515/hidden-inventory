@@ -226,7 +226,9 @@
     <h2 style="font-family:'Space Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--accent);text-transform:uppercase">
       Registro de Movimientos
     </h2>
+    {% if es_admin %}
     <button class="btn btn-primary" onclick="abrirNuevoMovimiento()">+ Nuevo movimiento</button>
+    {% endif %}
   </div>
 
   <!-- ─── Filtros ─── -->
@@ -1008,6 +1010,15 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 
