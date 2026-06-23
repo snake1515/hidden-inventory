@@ -953,11 +953,14 @@ async function guardarMovimiento() {
       fecha_documento: tipoSel === 'ingreso' ? document.getElementById('nm-fecha-doc').value || null : null,
       fecha_recepcion: tipoSel === 'ingreso' ? document.getElementById('nm-fecha-rec').value || null : null,
       items: itemsMov.map(i => ({
-        codigo:   i.codigo,
-        nombre:   i.nombre,
-        cantidad: i.cantidad,
-        origen:   i.origen  || null,
-        destino:  i.destino || null,
+        codigo:     i.codigo,
+        nombre:     i.nombre,
+        referencia: i.referencia || '',
+        cantidad:   i.cantidad,
+        origen:     i.origen  || null,
+        destino:    i.destino || null,
+        es_nuevo:   i.es_nuevo || false,
+        datos_nuevos: i.datos_nuevos || null,
       }))
     };
     const r  = await fetch('/movimientos/crear', {
@@ -994,6 +997,35 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
