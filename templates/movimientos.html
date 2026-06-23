@@ -226,9 +226,7 @@
     <h2 style="font-family:'Space Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--accent);text-transform:uppercase">
       Registro de Movimientos
     </h2>
-    {% if es_admin %}
     <button class="btn btn-primary" onclick="abrirNuevoMovimiento()">+ Nuevo movimiento</button>
-    {% endif %}
   </div>
 
   <!-- ─── Filtros ─── -->
@@ -596,13 +594,7 @@ function renderDetalle(m) {
       ${m.cliente ? `<div class="det-meta"><strong>Cliente / Destinatario</strong>${m.cliente}</div>` : ''}`;
   }
 
-  // Para CSV padre: aplanar todos los items de los lotes hijos
-  let itemsFuente = m.items || [];
-  if (m.tipo === 'csv' && m.lotes && m.lotes.length > 0) {
-    itemsFuente = m.lotes.flatMap(lote => lote.items || []);
-  }
-
-  const items = itemsFuente.map(i => {
+  const items = m.items.map(i => {
     let ubi = '';
     if (i.ubicacion_origen && i.ubicacion_destino)
       ubi = `${i.ubicacion_origen} → ${i.ubicacion_destino}`;
@@ -629,15 +621,7 @@ function renderDetalle(m) {
       ${m.documento ? `<div class="det-meta"><strong>Doc. soporte</strong>${m.documento}</div>` : ''}
       ${extraCabecera}
     </div>
-    ${(() => {
-      if (m.tipo === 'csv') {
-        const tieneItems = (m.lotes && m.lotes.length > 0) || (m.items && m.items.length > 0);
-        if (!tieneItems) return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px 16px;font-size:13px;color:var(--muted);margin-bottom:16px">⏳ Carga masiva en progreso...</div>';
-        if (m.comentario) return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px 16px;font-size:13px;color:var(--muted);margin-bottom:16px">✓ ${m.comentario}</div>`;
-        return '';
-      }
-      return m.comentario ? `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px 16px;font-size:13px;color:var(--muted);margin-bottom:16px">💬 ${m.comentario}</div>` : '';
-    })()}
+    ${m.comentario ? `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:12px 16px;font-size:13px;color:var(--muted);margin-bottom:16px">💬 ${m.comentario}</div>` : ''}
     <table class="det-table">
       <thead><tr><th>Código</th><th>Producto</th><th style="text-align:center">Cantidad</th><th>Ubicación</th></tr></thead>
       <tbody>${items}</tbody>
@@ -789,7 +773,7 @@ function agregarProductoExistente(p) {
     showToast(`"${p.nombre}" ya está en la lista`, true); return;
   }
   itemsMov.push({
-    codigo: p.codigo, nombre: p.nombre, cantidad: 1,
+    codigo: p.codigo, nombre: p.nombre, referencia: p.referencia || '', cantidad: 1,
     origen: 'bodega', destino: 'bodega', es_nuevo: false
   });
   renderItems();
@@ -1010,6 +994,10 @@ document.addEventListener('keydown', e => {
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
