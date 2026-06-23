@@ -142,38 +142,44 @@ def _generar_pdf_base(tipo: str, datos: dict, cab_rows: list) -> bytes:
         thead = [
             Paragraph('<font size="8" color="#ffffff"><b>#</b></font>',        _estilo("th", alignment=TA_CENTER)),
             Paragraph('<font size="8" color="#ffffff"><b>CÓDIGO</b></font>',   _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>REF.</b></font>',     _estilo("th", alignment=TA_LEFT)),
             Paragraph('<font size="8" color="#ffffff"><b>PRODUCTO</b></font>',  _estilo("th", alignment=TA_LEFT)),
             Paragraph('<font size="8" color="#ffffff"><b>CANT.</b></font>',    _estilo("th", alignment=TA_CENTER)),
             Paragraph('<font size="8" color="#ffffff"><b>DESDE</b></font>',    _estilo("th", alignment=TA_CENTER)),
             Paragraph('<font size="8" color="#ffffff"><b>HACIA</b></font>',    _estilo("th", alignment=TA_CENTER)),
         ]
-        col_widths = [1*cm, 2.3*cm, 6.2*cm, 1.8*cm, 2.7*cm, 3*cm]
+        col_widths = [0.7*cm, 2*cm, 2.5*cm, 5*cm, 1.5*cm, 2.3*cm, 2.5*cm]
     else:
         col_label = "DESTINO" if tipo == "ingreso" else "DESDE"
         thead = [
             Paragraph('<font size="8" color="#ffffff"><b>#</b></font>',        _estilo("th", alignment=TA_CENTER)),
             Paragraph('<font size="8" color="#ffffff"><b>CÓDIGO</b></font>',   _estilo("th", alignment=TA_LEFT)),
+            Paragraph('<font size="8" color="#ffffff"><b>REF.</b></font>',     _estilo("th", alignment=TA_LEFT)),
             Paragraph('<font size="8" color="#ffffff"><b>PRODUCTO</b></font>',  _estilo("th", alignment=TA_LEFT)),
             Paragraph('<font size="8" color="#ffffff"><b>CANT.</b></font>',    _estilo("th", alignment=TA_CENTER)),
             Paragraph(f'<font size="8" color="#ffffff"><b>{col_label}</b></font>',  _estilo("th", alignment=TA_CENTER)),
         ]
-        col_widths = [1*cm, 3*cm, 8.5*cm, 2*cm, 3.5*cm]
+        col_widths = [0.7*cm, 2.5*cm, 2.5*cm, 6.5*cm, 1.8*cm, 3*cm]
 
     tabla_data = [thead]
 
     for n, item in enumerate(items, 1):
-        codigo   = str(item.get("codigo") or "")
-        nombre   = str(item.get("nombre") or "")
-        cantidad = str(item.get("cantidad") or 0)
+        codigo     = str(item.get("codigo") or "")
+        referencia = str(item.get("referencia") or "")
+        nombre     = str(item.get("nombre") or "")
+        cantidad   = str(item.get("cantidad") or 0)
 
-        fila_num = Paragraph(str(n), _estilo("td_num", alignment=TA_CENTER,
-                                              textColor=GRIS_TEXTO, fontSize=9))
-        fila_cod = Paragraph(codigo, _estilo("td_cod", fontSize=9,
-                                              textColor=GRIS_TEXTO,
-                                              fontName="Helvetica-Oblique"))
-        fila_nom = Paragraph(nombre, _estilo("td_nom", fontSize=9))
+        fila_num  = Paragraph(str(n), _estilo("td_num", alignment=TA_CENTER,
+                                               textColor=GRIS_TEXTO, fontSize=9))
+        fila_cod  = Paragraph(codigo, _estilo("td_cod", fontSize=9,
+                                               textColor=GRIS_TEXTO,
+                                               fontName="Helvetica-Oblique"))
+        fila_ref  = Paragraph(referencia, _estilo("td_ref", fontSize=8,
+                                               textColor=GRIS_TEXTO,
+                                               fontName="Helvetica-Oblique"))
+        fila_nom  = Paragraph(nombre, _estilo("td_nom", fontSize=9))
         fila_cant = Paragraph(cantidad, _estilo("td_cant", alignment=TA_CENTER,
-                                                 fontSize=10, fontName="Helvetica-Bold"))
+                                                fontSize=10, fontName="Helvetica-Bold"))
 
         if tipo == "traslado":
             desde_label, desde_color = _ubi_label(item.get("origen"))
@@ -182,13 +188,13 @@ def _generar_pdf_base(tipo: str, datos: dict, cab_rows: list) -> bytes:
                                     _estilo("td_desde", alignment=TA_CENTER, fontSize=9))
             fila_hacia = Paragraph(f'<font color="{hacia_color}"><b>{hacia_label}</b></font>',
                                     _estilo("td_hacia", alignment=TA_CENTER, fontSize=9))
-            tabla_data.append([fila_num, fila_cod, fila_nom, fila_cant, fila_desde, fila_hacia])
+            tabla_data.append([fila_num, fila_cod, fila_ref, fila_nom, fila_cant, fila_desde, fila_hacia])
         else:
             ubi_campo = item.get("destino") if tipo == "ingreso" else item.get("origen")
             ubi_label, ubi_color = _ubi_label(ubi_campo)
             fila_ubi = Paragraph(f'<font color="{ubi_color}"><b>{ubi_label}</b></font>',
                                   _estilo("td_ubi", alignment=TA_CENTER, fontSize=9))
-            tabla_data.append([fila_num, fila_cod, fila_nom, fila_cant, fila_ubi])
+            tabla_data.append([fila_num, fila_cod, fila_ref, fila_nom, fila_cant, fila_ubi])
 
     # Fila total — el label va en la columna PRODUCTO (índice 2), el valor en CANT. (índice 3)
     n_cols = len(thead)
@@ -488,6 +494,11 @@ def generar_pdf_csv(datos: dict) -> bytes:
 
     doc.build(story)
     return buf.getvalue()
+
+
+
+
+
 
 
 
