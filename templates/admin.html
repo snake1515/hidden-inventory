@@ -182,6 +182,7 @@
         <label class="checkbox-label"><input type="checkbox" id="nu-bodega"/> Puede editar Bodega</label>
         <label class="checkbox-label"><input type="checkbox" id="nu-almacen"/> Puede editar Almacén</label>
         <label class="checkbox-label"><input type="checkbox" id="nu-movimientos"/> Puede ver Movimientos</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-crear-movimientos"/> Puede crear Movimientos</label>
       </div>
       <button class="btn btn-primary" onclick="crearUsuario()">+ Crear usuario</button>
     </div>
@@ -191,7 +192,7 @@
       <div style="overflow-x:auto">
       <table>
         <thead>
-          <tr><th>Usuario</th><th>Grupos</th><th>Bodega</th><th>Almacén</th><th>Movimientos</th><th>Estado</th><th>Acciones</th></tr>
+          <tr><th>Usuario</th><th>Grupos</th><th>Bodega</th><th>Almacén</th><th>Ver Mov.</th><th>Crear Mov.</th><th>Estado</th><th>Acciones</th></tr>
         </thead>
         <tbody>
           {% for u in usuarios %}
@@ -201,11 +202,12 @@
             <td>{% if u.puede_editar_bodega %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.puede_editar_almacen %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.puede_ver_movimientos %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_crear_movimientos %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.activo %}<span class="badge badge-on">Activo</span>{% else %}<span class="badge badge-off">Inactivo</span>{% endif %}</td>
             <td>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-secondary" style="padding:6px 12px;font-size:10px"
-                  onclick="abrirEditar({{ u.id }},{{ u.puede_editar_almacen|tojson }},{{ u.puede_editar_bodega|tojson }},{{ u.activo|tojson }},'{{ u.grupos or '' }}',{{ u.puede_ver_movimientos|tojson }})">Editar</button>
+                  onclick="abrirEditar({{ u.id }},{{ u.puede_editar_almacen|tojson }},{{ u.puede_editar_bodega|tojson }},{{ u.activo|tojson }},'{{ u.grupos or '' }}',{{ u.puede_ver_movimientos|tojson }},{{ u.puede_crear_movimientos|tojson }})">Editar</button>
                 <button class="btn btn-danger" style="padding:6px 12px;font-size:10px"
                   onclick="eliminarUsuario({{ u.id }},'{{ u.nombre }}')">Borrar</button>
               </div>
@@ -378,6 +380,7 @@ SKU001,Aceite Motor 10W40,REF-001,HONDA,ACEITES,24,12</pre>
       <label class="checkbox-label"><input type="checkbox" id="edit-bodega"/> Puede editar Bodega</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-almacen"/> Puede editar Almacén</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-movimientos"/> Puede ver Movimientos</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-crear-movimientos"/> Puede crear Movimientos</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-activo"/> Usuario activo</label>
     </div>
     <div class="modal-footer">
@@ -454,6 +457,7 @@ function crearUsuario() {
       puede_editar_almacen: document.getElementById('nu-almacen').checked,
       puede_editar_bodega: document.getElementById('nu-bodega').checked,
       puede_ver_movimientos: document.getElementById('nu-movimientos').checked,
+      puede_crear_movimientos: document.getElementById('nu-crear-movimientos').checked,
       grupos: getGrupos('nu-grupos')})
   }).then(r=>r.json()).then(res => {
     if (res.success) { showToast('✓ Usuario creado'); setTimeout(()=>location.reload(),1200); }
@@ -461,12 +465,13 @@ function crearUsuario() {
   });
 }
 
-function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos) {
+function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos, crearMovimientos) {
   document.getElementById('edit-id').value = id;
   document.getElementById('edit-almacen').checked = almacen;
   document.getElementById('edit-bodega').checked = bodega;
   document.getElementById('edit-activo').checked = activo;
   document.getElementById('edit-movimientos').checked = movimientos || false;
+  document.getElementById('edit-crear-movimientos').checked = crearMovimientos || false;
   setGrupos('edit-grupos', gruposStr ? gruposStr.split(', ').map(g=>g.trim()).filter(Boolean) : []);
   document.getElementById('modal-editar').classList.add('open');
 }
@@ -477,6 +482,7 @@ function guardarEdicion() {
       puede_editar_almacen: document.getElementById('edit-almacen').checked,
       puede_editar_bodega: document.getElementById('edit-bodega').checked,
       puede_ver_movimientos: document.getElementById('edit-movimientos').checked,
+      puede_crear_movimientos: document.getElementById('edit-crear-movimientos').checked,
       activo: document.getElementById('edit-activo').checked,
       grupos: getGrupos('edit-grupos')})
   }).then(r=>r.json()).then(res => {
@@ -755,6 +761,12 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){cerrarModal();cer
 </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 
