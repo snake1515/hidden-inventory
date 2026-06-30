@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Movimientos — Inventario</title>
+<title>STOCKa — Movimientos</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -18,14 +18,30 @@
   header { background:var(--surface); border-bottom:1px solid var(--border);
     padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between;
     position:sticky; top:0; z-index:200; }
-  .logo-h { font-family:'Space Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--accent); }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 100%;
+  }
+  .header-logo img {
+    height: 40px;
+    width: auto;
+  }
+  .header-logo-text {
+    font-family:'Space Mono',monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
   .hlinks { display:flex; gap:12px; align-items:center; }
   .hlinks a { color:var(--muted); text-decoration:none; font-size:11px; font-family:'Space Mono',monospace;
     letter-spacing:1px; padding:6px 14px; border:1px solid var(--border); border-radius:2px; transition:all .2s; }
   .hlinks a:hover { border-color:var(--accent); color:var(--accent); }
   .usuario-tag { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace; }
 
-  .main { max-width:1400px; margin:0 auto; padding:28px 24px; }
+  .main { max-width:1400px; margin:0 auto; padding:28px 24px; padding-bottom:100px; }
 
   /* ── Filtros ── */
   .filtros { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px; align-items:flex-end; }
@@ -204,12 +220,40 @@
   .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border);
     border-top-color:var(--accent); border-radius:50%; animation:spin .6s linear infinite; vertical-align:middle; }
   @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Footer ── */
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15,15,15,0.95);
+    border-top: 1px solid var(--border);
+    padding: 16px 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+  }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .footer a:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+  }
 </style>
 </head>
 <body>
 
 <header>
-  <span class="logo-h">Movimientos</span>
+  <div class="header-logo">
+    <img src="{{ url_for('static', filename='img/stocka_logo.png') }}" alt="STOCKa"/>
+    <span class="header-logo-text">STOCKa</span>
+  </div>
   <div class="hlinks">
     <span class="usuario-tag">{{ usuario }}</span>
     <a href="/">← Inventario</a>
@@ -995,8 +1039,71 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { cerrarNuevo(); cerrarDetalle(); }
 });
 </script>
+
+<div class="footer">
+  © 2024 STOCKa • Powered by <a href="https://softgest-portfolio.onrender.com" target="_blank">SoftGest</a>
+</div>
+
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
