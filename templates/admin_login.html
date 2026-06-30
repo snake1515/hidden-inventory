@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Admin — Acceso</title>
+<title>STOCKa — Panel Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -21,9 +21,37 @@
     background: radial-gradient(circle, rgba(232,255,58,0.06) 0%, transparent 70%);
     top: -200px; right: -200px; pointer-events: none;
   }
-  .container { width: 100%; max-width: 380px; padding: 20px; }
-  .logo { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 4px;
-    color: var(--accent); text-transform: uppercase; margin-bottom: 48px; }
+  .container { width: 100%; max-width: 420px; padding: 20px; }
+  .logo-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+  .logo-img {
+    height: 60px;
+    width: auto;
+  }
+  .logo-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .logo-text h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0;
+  }
+  .logo-text p {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin: 0;
+  }
   h1 { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700;
     line-height: 1.2; margin-bottom: 8px; }
   .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 40px; }
@@ -56,11 +84,40 @@
   .user-link { margin-top: 32px; text-align: center; font-size: 12px; color: var(--muted); }
   .user-link a { color: var(--accent); text-decoration: none;
     font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 1px; }
+
+  /* Footer */
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15,15,15,0.95);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+  }
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .footer a:hover {
+    text-decoration: underline;
+  }
+  .container {
+    margin-bottom: 50px;
+  }
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="logo">Sistema de Inventario</div>
+  <div class="logo-wrapper">
+    <img src="{{ url_for('static', filename='img/stocka_logo.png') }}" alt="STOCKa" class="logo-img"/>
+  </div>
+
   <h1>Panel Admin</h1>
   <p class="subtitle">Acceso restringido a administradores</p>
 
@@ -87,6 +144,11 @@
     ¿Eres usuario? <a href="/login">Ir al login</a>
   </div>
 </div>
+
+<div class="footer">
+  Powered by <a href="https://softgest-portfolio.onrender.com" target="_blank">SoftGest</a>
+</div>
+
 <script>
   const usuarioGuardado = localStorage.getItem('admin_usuario');
   if (usuarioGuardado) {
