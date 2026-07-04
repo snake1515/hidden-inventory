@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ps = document.getElementById('prod-search');
     const pd = document.getElementById('prod-dropdown');
     if (ps && pd && !ps.contains(e.target) && !pd.contains(e.target)) {
-      pd.classList.remove('open');
+      pd.style.display = 'none';
     }
   });
 });
@@ -728,7 +728,7 @@ function abrirNuevoMovimiento() {
   document.getElementById('campos-egreso').style.display   = 'none';
   document.getElementById('campos-traslado').style.display = 'none';
   document.getElementById('prod-search').value = '';
-  document.getElementById('prod-dropdown').classList.remove('open');
+  document.getElementById('prod-dropdown').style.display='none';
   limpiarPdf();
   cerrarNuevoProd();
   ['tbtn-ingreso','tbtn-egreso','tbtn-traslado'].forEach(id =>
@@ -806,7 +806,7 @@ function buscarProductosDebounce() {
 function buscarProductos() {
   const q = document.getElementById('prod-search').value.trim();
   const dd = document.getElementById('prod-dropdown');
-  if (!q) { dd.classList.remove('open'); dd.innerHTML = ''; return; }
+  if (!q) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
   fetch('/movimientos/buscar_productos?q=' + encodeURIComponent(q))
     .then(r => r.json())
     .then(data => {
@@ -838,13 +838,13 @@ function buscarProductos() {
       nuevo.innerHTML = `+ Agregar "${q}" como producto nuevo`;
       nuevo.onclick = () => abrirNuevoProd(q);
       dd.appendChild(nuevo);
-      dd.classList.add('open');
+      dd.style.display = 'block';
     });
 }
 
 function agregarProductoExistente(p) {
   document.getElementById('prod-search').value = '';
-  document.getElementById('prod-dropdown').classList.remove('open');
+  document.getElementById('prod-dropdown').style.display='none';
   // Evitar duplicados
   if (itemsMov.find(i => i.codigo === p.codigo)) {
     showToast(`"${p.nombre}" ya está en la lista`, true); return;
@@ -873,7 +873,7 @@ function agregarProductoExistente(p) {
 
 // ─── PRODUCTO NUEVO ───
 function abrirNuevoProd(q) {
-  document.getElementById('prod-dropdown').classList.remove('open');
+  document.getElementById('prod-dropdown').style.display='none';
   // Pre-rellenar nombre si q parece un nombre
   document.getElementById('np-nombre').value = q;
   document.getElementById('np-codigo').value  = '';
@@ -1174,6 +1174,123 @@ document.addEventListener('keydown', e => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
