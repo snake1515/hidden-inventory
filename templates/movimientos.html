@@ -348,25 +348,25 @@
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Proveedor</label>
-          <input type="text" id="nm-proveedor" placeholder="Nombre del proveedor..."/>
+          <input type="text" id="nm-proveedor" placeholder="Nombre del proveedor..." oninput="guardarBorrador()"/>
         </div>
         <div class="form-group" style="flex:2">
           <label>N° Factura / Remisión</label>
-          <input type="text" id="nm-factura" placeholder="FAC-2024-00871"/>
+          <input type="text" id="nm-factura" placeholder="FAC-2024-00871" oninput="guardarBorrador()"/>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Fecha del documento (opcional)</label>
-          <input type="date" id="nm-fecha-doc"/>
+          <input type="date" id="nm-fecha-doc" onchange="guardarBorrador()"/>
         </div>
         <div class="form-group">
           <label>Fecha de recepción (opcional)</label>
-          <input type="date" id="nm-fecha-rec"/>
+          <input type="date" id="nm-fecha-rec" onchange="guardarBorrador()"/>
         </div>
         <div class="form-group" style="flex:2">
           <label>Documento soporte (opcional)</label>
-          <input type="text" id="nm-doc" placeholder="Número o referencia del doc. físico..."/>
+          <input type="text" id="nm-doc" placeholder="Número o referencia del doc. físico..." oninput="guardarBorrador()"/>
         </div>
       </div>
     </div>
@@ -376,7 +376,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Motivo del egreso</label>
-          <select id="nm-motivo">
+          <select id="nm-motivo" onchange="guardarBorrador()">
             <option value="">— Seleccionar —</option>
             <option value="Venta a cliente">Venta a cliente</option>
             <option value="Devolución a proveedor">Devolución a proveedor</option>
@@ -386,13 +386,13 @@
         </div>
         <div class="form-group" style="flex:2">
           <label>Cliente / Destinatario (opcional)</label>
-          <input type="text" id="nm-cliente" placeholder="Nombre del cliente o proveedor..."/>
+          <input type="text" id="nm-cliente" placeholder="Nombre del cliente o proveedor..." oninput="guardarBorrador()"/>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" style="flex:2">
           <label>Documento soporte (opcional)</label>
-          <input type="text" id="nm-doc-egreso" placeholder="Remisión, factura, acta..."/>
+          <input type="text" id="nm-doc-egreso" placeholder="Remisión, factura, acta..." oninput="guardarBorrador()"/>
         </div>
       </div>
     </div>
@@ -402,7 +402,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Documento soporte (opcional)</label>
-          <input type="text" id="nm-doc-otros" placeholder="Orden interna, acta..."/>
+          <input type="text" id="nm-doc-otros" placeholder="Orden interna, acta..." oninput="guardarBorrador()"/>
         </div>
       </div>
     </div>
@@ -411,7 +411,7 @@
     <div class="form-row">
       <div class="form-group">
         <label>Comentario (opcional)</label>
-        <input type="text" id="nm-comentario" placeholder="Nota adicional..."/>
+        <input type="text" id="nm-comentario" placeholder="Nota adicional..." oninput="guardarBorrador()"/>
       </div>
     </div>
 
@@ -423,10 +423,11 @@
            ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
            ondrop="handlePdfDrop(event)">
-        <p>📎 Arrastra tu PDF aquí</p>
-        <p class="hint">O haz clic para seleccionar</p>
+        <p>📎 Arrastra tu archivo aquí</p>
+        <p class="hint">PDF, imagen, Word, Excel, CSV · Clic para seleccionar</p>
       </div>
-      <input type="file" id="pdf-input" style="display:none" accept=".pdf"
+      <input type="file" id="pdf-input" style="display:none"
+             accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv"
              onchange="seleccionarPdf(this)"/>
       <div class="pdf-selected" id="pdf-selected">
         <span style="font-size:18px">📄</span>
@@ -728,10 +729,29 @@ function abrirNuevoMovimiento() {
   document.getElementById('prod-dropdown').classList.remove('open');
   limpiarPdf();
   cerrarNuevoProd();
-  renderItems();
   ['tbtn-ingreso','tbtn-egreso','tbtn-traslado'].forEach(id =>
     document.getElementById(id).className = 'tipo-btn');
   document.getElementById('modal-nuevo').classList.add('open');
+
+  // Recuperar borrador si existe
+  try {
+    const raw = localStorage.getItem(BORRADOR_KEY);
+    if (raw) {
+      const b = JSON.parse(raw);
+      if (b && (b.tipo || (b.items && b.items.length))) {
+        const recover = confirm('📋 Hay un borrador guardado de un movimiento anterior. ¿Deseas recuperarlo?');
+        if (recover) {
+          cargarBorrador();
+          showToast('✓ Borrador recuperado');
+        } else {
+          limpiarBorrador();
+          renderItems();
+        }
+        return;
+      }
+    }
+  } catch(e) {}
+  renderItems();
 }
 function cerrarNuevo() {
   document.getElementById('modal-nuevo').classList.remove('open');
@@ -746,6 +766,7 @@ function selTipo(tipo) {
   document.getElementById('campos-ingreso').style.display  = tipo === 'ingreso'  ? 'block' : 'none';
   document.getElementById('campos-egreso').style.display   = tipo === 'egreso'   ? 'block' : 'none';
   document.getElementById('campos-traslado').style.display = tipo === 'traslado' ? 'block' : 'none';
+  guardarBorrador();
   renderItems();
 }
 
@@ -760,7 +781,10 @@ function handlePdfDrop(e) {
   e.preventDefault();
   document.getElementById('pdf-zone').classList.remove('dragover');
   const file = e.dataTransfer.files[0];
-  if (!file || !file.name.toLowerCase().endsWith('.pdf')) { showToast('Solo archivos PDF', true); return; }
+  if (!file) return;
+  const allowed = ['.pdf','.jpg','.jpeg','.png','.gif','.webp','.doc','.docx','.xls','.xlsx','.txt','.csv'];
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+  if (!allowed.includes(ext)) { showToast('Tipo de archivo no permitido', true); return; }
   pdfFile = file;
   document.getElementById('pdf-name').textContent = file.name;
   document.getElementById('pdf-selected').classList.add('show');
@@ -816,10 +840,11 @@ function agregarProductoExistente(p) {
   if (itemsMov.find(i => i.codigo === p.codigo)) {
     showToast(`"${p.nombre}" ya está en la lista`, true); return;
   }
-  itemsMov.push({
+  itemsMov.unshift({
     codigo: p.codigo, nombre: p.nombre, referencia: p.referencia || '', cantidad: 1,
     origen: 'bodega', destino: 'bodega', es_nuevo: false
   });
+  guardarBorrador();
   renderItems();
 }
 
@@ -844,7 +869,7 @@ function agregarProductoNuevo() {
   const grupo  = document.getElementById('np-grupo').value.trim();
   if (!codigo || !nombre || !grupo) { showToast('Código, nombre y grupo son obligatorios', true); return; }
   if (itemsMov.find(i => i.codigo === codigo)) { showToast('Ese código ya está en la lista', true); return; }
-  itemsMov.push({
+  itemsMov.unshift({
     codigo, nombre, cantidad: 1,
     origen: 'bodega', destino: 'bodega', es_nuevo: true,
     datos_nuevos: {
@@ -854,6 +879,7 @@ function agregarProductoNuevo() {
     }
   });
   cerrarNuevoProd();
+  guardarBorrador();
   renderItems();
   showToast(`✓ "${nombre}" agregado (se creará en inventario)`);
 }
@@ -937,12 +963,19 @@ function renderItems() {
   });
 }
 
+function quitarItem(idx) {
+  itemsMov.splice(idx, 1);
+  guardarBorrador();
+  renderItems();
+}
 function setDestino(idx, val) {
   itemsMov[idx].destino = val;
+  guardarBorrador();
   renderItems();
 }
 function setOrigen(idx, val) {
   itemsMov[idx].origen = val;
+  guardarBorrador();
   renderItems();
 }
 
@@ -1013,6 +1046,7 @@ async function guardarMovimiento() {
     });
     const rj = await r.json();
     if (rj.success) {
+      limpiarBorrador();
       showToast(`✓ Movimiento #${rj.id} guardado`);
       cerrarNuevo();
       cargarMovimientos();
@@ -1024,6 +1058,56 @@ async function guardarMovimiento() {
   } finally {
     btn.disabled=false; btn.textContent='Guardar movimiento';
   }
+}
+
+// ─── BORRADOR (localStorage) ───
+const BORRADOR_KEY = 'movimiento_borrador';
+
+function guardarBorrador() {
+  const campos = {
+    tipo:          tipoSel,
+    items:         itemsMov,
+    doc:           document.getElementById('nm-doc').value,
+    docEgreso:     document.getElementById('nm-doc-egreso').value,
+    docOtros:      document.getElementById('nm-doc-otros').value,
+    comentario:    document.getElementById('nm-comentario').value,
+    proveedor:     document.getElementById('nm-proveedor').value,
+    factura:       document.getElementById('nm-factura').value,
+    fechaDoc:      document.getElementById('nm-fecha-doc').value,
+    fechaRec:      document.getElementById('nm-fecha-rec').value,
+    motivo:        document.getElementById('nm-motivo').value,
+    cliente:       document.getElementById('nm-cliente').value,
+  };
+  try { localStorage.setItem(BORRADOR_KEY, JSON.stringify(campos)); } catch(e) {}
+}
+
+function cargarBorrador() {
+  try {
+    const raw = localStorage.getItem(BORRADOR_KEY);
+    if (!raw) return false;
+    const b = JSON.parse(raw);
+    if (!b || (!b.tipo && (!b.items || !b.items.length))) return false;
+
+    itemsMov = b.items || [];
+    if (b.tipo) selTipo(b.tipo);
+
+    document.getElementById('nm-doc').value        = b.doc        || '';
+    document.getElementById('nm-doc-egreso').value = b.docEgreso  || '';
+    document.getElementById('nm-doc-otros').value  = b.docOtros   || '';
+    document.getElementById('nm-comentario').value = b.comentario || '';
+    document.getElementById('nm-proveedor').value  = b.proveedor  || '';
+    document.getElementById('nm-factura').value    = b.factura    || '';
+    document.getElementById('nm-fecha-doc').value  = b.fechaDoc   || '';
+    document.getElementById('nm-fecha-rec').value  = b.fechaRec   || '';
+    document.getElementById('nm-motivo').value     = b.motivo     || '';
+    document.getElementById('nm-cliente').value    = b.cliente    || '';
+    renderItems();
+    return true;
+  } catch(e) { return false; }
+}
+
+function limpiarBorrador() {
+  try { localStorage.removeItem(BORRADOR_KEY); } catch(e) {}
 }
 
 // ─── TOAST ───
@@ -1046,6 +1130,122 @@ document.addEventListener('keydown', e => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
