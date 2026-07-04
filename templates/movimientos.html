@@ -520,9 +520,10 @@ let detMovId    = null;
 document.addEventListener('DOMContentLoaded', () => {
   cargarMovimientos();
   document.addEventListener('click', e => {
-    if (!document.getElementById('prod-search').contains(e.target) &&
-        !document.getElementById('prod-dropdown').contains(e.target)) {
-      document.getElementById('prod-dropdown').classList.remove('open');
+    const ps = document.getElementById('prod-search');
+    const pd = document.getElementById('prod-dropdown');
+    if (ps && pd && !ps.contains(e.target) && !pd.contains(e.target)) {
+      pd.classList.remove('open');
     }
   });
 });
@@ -815,11 +816,18 @@ function buscarProductos() {
           const div = document.createElement('div');
           const stockB = p.existencias_bodega ?? 0;
           const stockA = p.existencias_almacen ?? 0;
-          const sinStock = (tipoSel === 'egreso' || tipoSel === 'traslado') && stockB <= 0 && stockA <= 0;          div.className = 'prod-item' + (sinStock ? ' sin-stock' : '');
-          div.innerHTML = `<span class="pi-code">${p.codigo}</span>
-            <span class="pi-stock" style="${sinStock ? 'color:var(--danger,#ff4d4d)' : ''}">B:${stockB} / A:${stockA}</span>
-            <div>${p.nombre}${sinStock ? ' <span style="color:var(--danger,#ff4d4d);font-size:10px">· SIN STOCK</span>' : ''}</div>
-            <div style="font-size:11px;color:var(--muted)">${[p.referencia,p.marca,p.grupo].filter(Boolean).join(' · ')}</div>`;
+          const sinStock = (tipoSel === 'egreso' || tipoSel === 'traslado') && stockB <= 0 && stockA <= 0;
+          div.className = 'prod-item' + (sinStock ? ' sin-stock' : '');
+
+          const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          const stockStyle = sinStock ? 'color:var(--danger,#ff4d4d)' : '';
+          const sinStockTag = sinStock ? ' <span style="color:var(--danger,#ff4d4d);font-size:10px">· SIN STOCK</span>' : '';
+          const meta = [p.referencia, p.marca, p.grupo].filter(Boolean).map(esc).join(' · ');
+
+          div.innerHTML = `<span class="pi-code">${esc(p.codigo)}</span>
+            <span class="pi-stock" style="${stockStyle}">B:${stockB} / A:${stockA}</span>
+            <div>${esc(p.nombre)}${sinStockTag}</div>
+            <div style="font-size:11px;color:var(--muted)">${meta}</div>`;
           div.onclick = () => agregarProductoExistente(p);
           dd.appendChild(div);
         });
@@ -1166,6 +1174,122 @@ document.addEventListener('keydown', e => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
