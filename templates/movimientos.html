@@ -819,7 +819,7 @@ function buscarProductos() {
           const sinStock = (tipoSel === 'egreso' || tipoSel === 'traslado') && stockB <= 0 && stockA <= 0;
           div.className = 'prod-item' + (sinStock ? ' sin-stock' : '');
 
-          const esc = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
           const stockStyle = sinStock ? 'color:var(--danger,#ff4d4d)' : '';
           const sinStockTag = sinStock ? ' <span style="color:var(--danger,#ff4d4d);font-size:10px">· SIN STOCK</span>' : '';
           const meta = [p.referencia, p.marca, p.grupo].filter(Boolean).map(esc).join(' · ');
@@ -1174,6 +1174,122 @@ document.addEventListener('keydown', e => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
