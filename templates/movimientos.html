@@ -138,7 +138,8 @@
   .prod-dropdown { position:absolute; top:100%; left:0; right:0; background:var(--surface);
     border:1px solid var(--border); border-top:none; border-radius:0 0 4px 4px;
     max-height:240px; overflow-y:auto; z-index:50; display:none; }
-  .prod-dropdown.open { display:block; }
+  .prod-item.sin-stock { opacity: 0.6; }
+  .prod-item.sin-stock:hover { background: rgba(255,77,77,0.08); }
   .prod-item { padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border);
     font-size:13px; transition:background .15s; }
   .prod-item:last-child { border-bottom:none; }
@@ -812,12 +813,12 @@ function buscarProductos() {
       if (data.length) {
         data.forEach(p => {
           const div = document.createElement('div');
-          div.className = 'prod-item';
           const stockB = p.existencias_bodega ?? 0;
           const stockA = p.existencias_almacen ?? 0;
+          const sinStock = (tipoSel === 'egreso' || tipoSel === 'traslado') && stockB <= 0 && stockA <= 0;          div.className = 'prod-item' + (sinStock ? ' sin-stock' : '');
           div.innerHTML = `<span class="pi-code">${p.codigo}</span>
-            <span class="pi-stock">B:${stockB} / A:${stockA}</span>
-            <div>${p.nombre}</div>
+            <span class="pi-stock" style="${sinStock ? 'color:var(--danger,#ff4d4d)' : ''}">B:${stockB} / A:${stockA}</span>
+            <div>${p.nombre}${sinStock ? ' <span style="color:var(--danger,#ff4d4d);font-size:10px">· SIN STOCK</span>' : ''}</div>
             <div style="font-size:11px;color:var(--muted)">${[p.referencia,p.marca,p.grupo].filter(Boolean).join(' · ')}</div>`;
           div.onclick = () => agregarProductoExistente(p);
           dd.appendChild(div);
@@ -840,9 +841,23 @@ function agregarProductoExistente(p) {
   if (itemsMov.find(i => i.codigo === p.codigo)) {
     showToast(`"${p.nombre}" ya está en la lista`, true); return;
   }
+  const stockB = p.existencias_bodega ?? 0;
+  const stockA = p.existencias_almacen ?? 0;
+  const sinStock = (tipoSel === 'egreso' || tipoSel === 'traslado') && stockB <= 0 && stockA <= 0;
+  // En egreso/traslado: bloquear si ambos stocks son 0
+  if (sinStock) {
+    showToast(`❌ "${p.nombre}" no tiene existencias disponibles`, true); return;
+  }
+  // Advertir si alguno es 0 (solo en egreso/traslado)
+  if ((tipoSel === 'egreso' || tipoSel === 'traslado') && (stockB <= 0 || stockA <= 0)) {
+    showToast(`⚠️ "${p.nombre}" tiene existencias en 0 en ${stockB <= 0 ? 'Bodega' : 'Almacén'}`);
+  }
+  // Origen por defecto: el que tenga stock; si bodega es 0 poner almacen
+  const origenDefault = (tipoSel === 'egreso' || tipoSel === 'traslado') && stockB <= 0 ? 'almacen' : 'bodega';
   itemsMov.unshift({
     codigo: p.codigo, nombre: p.nombre, referencia: p.referencia || '', cantidad: 1,
-    origen: 'bodega', destino: 'bodega', es_nuevo: false
+    origen: origenDefault, destino: 'bodega', es_nuevo: false,
+    existencias_bodega: stockB, existencias_almacen: stockA
   });
   guardarBorrador();
   renderItems();
@@ -911,25 +926,33 @@ function renderItems() {
     } else if (tipoSel === 'egreso') {
       const selB = item.origen === 'bodega';
       const selA = item.origen === 'almacen';
+      const stockB = item.existencias_bodega ?? null;
+      const stockA = item.existencias_almacen ?? null;
+      const sinB = stockB !== null && stockB <= 0;
+      const sinA = stockA !== null && stockA <= 0;
       ubiHtml = `<div class="ir-ubi-btns">
         <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-right:4px">←</span>
-        <button class="ubi-btn ${selB ? 'ubi-btn-bodega' : ''}"
-          onclick="setOrigen(${idx},'bodega')">Bodega</button>
-        <button class="ubi-btn ${selA ? 'ubi-btn-almacen' : ''}"
-          onclick="setOrigen(${idx},'almacen')">Almacén</button>
+        <button class="ubi-btn ${selB ? 'ubi-btn-bodega' : ''}" ${sinB ? 'disabled title="Sin existencias en Bodega" style="opacity:0.35;cursor:not-allowed"' : ''}
+          onclick="${sinB ? '' : `setOrigen(${idx},'bodega')`}">Bodega${sinB ? ' (0)' : ''}</button>
+        <button class="ubi-btn ${selA ? 'ubi-btn-almacen' : ''}" ${sinA ? 'disabled title="Sin existencias en Almacén" style="opacity:0.35;cursor:not-allowed"' : ''}
+          onclick="${sinA ? '' : `setOrigen(${idx},'almacen')`}">Almacén${sinA ? ' (0)' : ''}</button>
       </div>`;
     } else if (tipoSel === 'traslado') {
       const oB = item.origen === 'bodega';
       const oA = item.origen === 'almacen';
       const dB = item.destino === 'bodega';
       const dA = item.destino === 'almacen';
+      const stockB = item.existencias_bodega ?? null;
+      const stockA = item.existencias_almacen ?? null;
+      const sinB = stockB !== null && stockB <= 0;
+      const sinA = stockA !== null && stockA <= 0;
       ubiHtml = `<div class="ir-ubi-btns" style="flex-direction:column;gap:4px;align-items:flex-start">
         <div style="display:flex;align-items:center;gap:4px">
           <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;width:42px">Desde</span>
-          <button class="ubi-btn ${oB ? 'ubi-btn-bodega' : ''}"
-            onclick="setOrigen(${idx},'bodega')">Bodega</button>
-          <button class="ubi-btn ${oA ? 'ubi-btn-almacen' : ''}"
-            onclick="setOrigen(${idx},'almacen')">Almacén</button>
+          <button class="ubi-btn ${oB ? 'ubi-btn-bodega' : ''}" ${sinB ? 'disabled title="Sin existencias en Bodega" style="opacity:0.35;cursor:not-allowed"' : ''}
+            onclick="${sinB ? '' : `setOrigen(${idx},'bodega')`}">Bodega${sinB ? ' (0)' : ''}</button>
+          <button class="ubi-btn ${oA ? 'ubi-btn-almacen' : ''}" ${sinA ? 'disabled title="Sin existencias en Almacén" style="opacity:0.35;cursor:not-allowed"' : ''}
+            onclick="${sinA ? '' : `setOrigen(${idx},'almacen')`}">Almacén${sinA ? ' (0)' : ''}</button>
         </div>
         <div style="display:flex;align-items:center;gap:4px">
           <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;width:42px">Hacia</span>
@@ -986,6 +1009,20 @@ async function guardarMovimiento() {
 
   const btn = document.getElementById('btn-guardar-mov');
   btn.disabled = true; btn.textContent = 'Guardando...';
+
+  try {
+    // 0. Validar existencias en egreso/traslado
+    if (tipoSel === 'egreso' || tipoSel === 'traslado') {
+      const sinStock = itemsMov.filter(i => !i.es_nuevo && i.existencias_bodega !== undefined && (
+        (i.origen === 'bodega'  && (i.existencias_bodega  ?? 0) <= 0) ||
+        (i.origen === 'almacen' && (i.existencias_almacen ?? 0) <= 0)
+      ));
+      if (sinStock.length) {
+        const nombres = sinStock.map(i => `• ${i.nombre} (${i.origen === 'bodega' ? 'Bodega' : 'Almacén'}: 0)`).join('\n');
+        showToast(`❌ Sin existencias:\n${nombres}`, true);
+        btn.disabled = false; btn.textContent = 'Guardar movimiento'; return;
+      }
+    }
 
   try {
     // 1. Subir PDF si hay uno pendiente
@@ -1130,6 +1167,122 @@ document.addEventListener('keydown', e => {
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
