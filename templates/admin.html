@@ -331,14 +331,51 @@
     </div>
 
     <div class="card">
+      <div class="card-title">Actualizar nombres masivamente</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        Solo columnas: <strong style="color:var(--text);font-family:'Space Mono',monospace">codigo, nombre</strong>.
+      </p>
+      <ul style="font-size:13px;color:var(--muted);margin-bottom:20px;padding-left:20px;line-height:2">
+        <li>Código existe + nombre tiene valor → <span style="color:var(--success)">actualiza</span></li>
+        <li>Código existe + nombre vacío o 0 → <span style="color:var(--warning)">no toca nada</span></li>
+        <li>Código no existe → <span style="color:var(--muted)">ignora</span></li>
+      </ul>
+      <div class="drop-zone" id="drop-zone-nom" onclick="document.getElementById('csv-nom-file').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')" ondrop="handleDropNom(event)">
+        <p>Arrastra tu CSV de nombres aquí</p>
+        <p style="font-size:22px;margin:8px 0">✏️</p>
+        <p class="hint">O haz clic para seleccionar</p>
+      </div>
+      <input type="file" id="csv-nom-file" style="display:none" accept=".csv" onchange="seleccionarCSV(this,'csv-nom-file-name','btn-subir-nom','csv-nom-file-selected')"/>
+      <div class="file-selected" id="csv-nom-file-selected">
+        <span style="font-size:18px">✏️</span>
+        <span class="file-name" id="csv-nom-file-name">—</span>
+        <button class="btn-clear" onclick="limpiarCSV('csv-nom-file','csv-nom-file-selected','btn-subir-nom','progress-nom','csv-nom-result')">×</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="btn-subir-nom" onclick="subirCSVNombres()" disabled>↑ Subir nombres</button>
+      </div>
+      <div class="progress-wrap" id="progress-nom">
+        <div class="progress-label"><span id="progress-nom-label">Procesando...</span><span id="progress-nom-pct">0%</span></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-nom-fill"></div></div>
+      </div>
+      <div class="csv-result" id="csv-nom-result"></div>
+    </div>
+
+    <div class="card">
       <div class="card-title">Formato esperado</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:10px">CSV de productos:</p>
       <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto;margin-bottom:16px">codigo,nombre,referencia,marca,grupo,existencias_bodega,existencias_almacen
 SKU001,Aceite Motor 10W40,REF-001,HONDA,ACEITES,24,12</pre>
       <p style="font-size:12px;color:var(--muted);margin-bottom:10px">CSV de referencias:</p>
-      <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto">codigo,referencia
+      <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto;margin-bottom:16px">codigo,referencia
 1,A412
 2,B203</pre>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">CSV de nombres:</p>
+      <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto">codigo,nombre
+1,Bujia BWS 11
+2,Aceite Motor 20W50</pre>
     </div>
   </div>  <!-- ─── TAB MOVIMIENTOS ─── -->
   <div class="tab-content" id="tab-movimientos">
@@ -625,8 +662,15 @@ function handleDropRef(e) {
   const input = document.getElementById('csv-ref-file'); input.files = dt.files;
   seleccionarCSV(input,'csv-ref-file-name','btn-subir-ref','csv-ref-file-selected');
 }
+function handleDropNom(e) {
+  e.preventDefault(); document.getElementById('drop-zone-nom').classList.remove('dragover');
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(file);
+  const input = document.getElementById('csv-nom-file'); input.files = dt.files;
+  seleccionarCSV(input,'csv-nom-file-name','btn-subir-nom','csv-nom-file-selected');
+}
 
-async function procesarCSV(fileId, endpoint, progressId, labelId, pctId, fillId, resultId, btnId, campoConteo) {
+async function procesarCSV(fileId, endpoint, progressId, labelId, pctId, fillId, resultId, btnId, campoConteo, etiqueta) {
   const file = document.getElementById(fileId).files[0]; if (!file) return;
   const btn = document.getElementById(btnId); btn.disabled=true; btn.style.opacity='0.5';
   const esCargaPrincipal = endpoint === '/admin/carga_csv_lote';
@@ -740,7 +784,7 @@ async function procesarCSV(fileId, endpoint, progressId, labelId, pctId, fillId,
   div.style.display='block'; div.className='csv-result ok';
   const label = campoConteo==='insertados' ? `Insertados: ${totalOk} | Omitidos: ${totalOmit}` : `Actualizadas: ${totalOk} | Omitidas: ${totalOmit}`;
   div.textContent = `✓ ${label}`;
-  showToast(`✓ ${totalOk} ${campoConteo==='insertados'?'productos cargados':'referencias actualizadas'}`);
+  showToast(`✓ ${totalOk} ${campoConteo==='insertados'?'productos cargados':(etiqueta||'registros actualizados')}`);
   btn.disabled=false; btn.style.opacity='1';
 }
 
@@ -748,7 +792,10 @@ function subirCSV() {
   procesarCSV('csv-file','/admin/carga_csv_lote','progress-csv','progress-csv-label','progress-csv-pct','progress-csv-fill','csv-result','btn-subir-csv','insertados');
 }
 function subirCSVReferencias() {
-  procesarCSV('csv-ref-file','/admin/carga_csv_referencias_lote','progress-ref','progress-ref-label','progress-ref-pct','progress-ref-fill','csv-ref-result','btn-subir-ref','actualizados');
+  procesarCSV('csv-ref-file','/admin/carga_csv_referencias_lote','progress-ref','progress-ref-label','progress-ref-pct','progress-ref-fill','csv-ref-result','btn-subir-ref','actualizados','referencias actualizadas');
+}
+function subirCSVNombres() {
+  procesarCSV('csv-nom-file','/admin/carga_csv_nombres_lote','progress-nom','progress-nom-label','progress-nom-pct','progress-nom-fill','csv-nom-result','btn-subir-nom','actualizados','nombres actualizados');
 }
 
 // ─── TOAST ───
@@ -761,6 +808,7 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){cerrarModal();cer
 </script>
 </body>
 </html>
+
 
 
 
