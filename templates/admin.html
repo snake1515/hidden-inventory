@@ -181,6 +181,7 @@
       <div class="permisos-row">
         <label class="checkbox-label"><input type="checkbox" id="nu-bodega"/> Puede editar Bodega</label>
         <label class="checkbox-label"><input type="checkbox" id="nu-almacen"/> Puede editar Almacén</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-deposito"/> Puede editar Depósito Almacén</label>
         <label class="checkbox-label"><input type="checkbox" id="nu-refmarca"/> Puede editar Referencia/Marca</label>
         <label class="checkbox-label"><input type="checkbox" id="nu-movimientos"/> Puede ver Movimientos</label>
         <label class="checkbox-label"><input type="checkbox" id="nu-crear-movimientos"/> Puede crear Movimientos</label>
@@ -193,7 +194,7 @@
       <div style="overflow-x:auto">
       <table>
         <thead>
-          <tr><th>Usuario</th><th>Grupos</th><th>Bodega</th><th>Almacén</th><th>Ref/Marca</th><th>Ver Mov.</th><th>Crear Mov.</th><th>Estado</th><th>Acciones</th></tr>
+          <tr><th>Usuario</th><th>Grupos</th><th>Bodega</th><th>Almacén</th><th>Depósito</th><th>Ref/Marca</th><th>Ver Mov.</th><th>Crear Mov.</th><th>Estado</th><th>Acciones</th></tr>
         </thead>
         <tbody>
           {% for u in usuarios %}
@@ -202,6 +203,7 @@
             <td style="max-width:260px;font-size:12px;color:var(--muted)">{{ u.grupos or '—' }}</td>
             <td>{% if u.puede_editar_bodega %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.puede_editar_almacen %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_editar_deposito_almacen %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.puede_editar_referencia_marca %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.puede_ver_movimientos %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
             <td>{% if u.puede_crear_movimientos %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
@@ -209,7 +211,7 @@
             <td>
               <div style="display:flex;gap:8px">
                 <button class="btn btn-secondary" style="padding:6px 12px;font-size:10px"
-                  onclick="abrirEditar({{ u.id }},{{ u.puede_editar_almacen|tojson }},{{ u.puede_editar_bodega|tojson }},{{ u.activo|tojson }},'{{ u.grupos or '' }}',{{ u.puede_ver_movimientos|tojson }},{{ u.puede_crear_movimientos|tojson }},{{ u.puede_editar_referencia_marca|tojson }})">Editar</button>
+                  onclick="abrirEditar({{ u.id }},{{ u.puede_editar_almacen|tojson }},{{ u.puede_editar_bodega|tojson }},{{ u.activo|tojson }},'{{ u.grupos or '' }}',{{ u.puede_ver_movimientos|tojson }},{{ u.puede_crear_movimientos|tojson }},{{ u.puede_editar_referencia_marca|tojson }},{{ u.puede_editar_deposito_almacen|tojson }})">Editar</button>
                 <button class="btn btn-danger" style="padding:6px 12px;font-size:10px"
                   onclick="eliminarUsuario({{ u.id }},'{{ u.nombre }}')">Borrar</button>
               </div>
@@ -418,6 +420,7 @@ SKU001,Aceite Motor 10W40,REF-001,HONDA,ACEITES,24,12</pre>
     <div class="permisos-row">
       <label class="checkbox-label"><input type="checkbox" id="edit-bodega"/> Puede editar Bodega</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-almacen"/> Puede editar Almacén</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-deposito"/> Puede editar Depósito Almacén</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-refmarca"/> Puede editar Referencia/Marca</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-movimientos"/> Puede ver Movimientos</label>
       <label class="checkbox-label"><input type="checkbox" id="edit-crear-movimientos"/> Puede crear Movimientos</label>
@@ -496,6 +499,7 @@ function crearUsuario() {
     body: JSON.stringify({nombre, password:pass,
       puede_editar_almacen: document.getElementById('nu-almacen').checked,
       puede_editar_bodega: document.getElementById('nu-bodega').checked,
+      puede_editar_deposito_almacen: document.getElementById('nu-deposito').checked,
       puede_editar_referencia_marca: document.getElementById('nu-refmarca').checked,
       puede_ver_movimientos: document.getElementById('nu-movimientos').checked,
       puede_crear_movimientos: document.getElementById('nu-crear-movimientos').checked,
@@ -506,7 +510,7 @@ function crearUsuario() {
   });
 }
 
-function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos, crearMovimientos, refMarca) {
+function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos, crearMovimientos, refMarca, deposito) {
   document.getElementById('edit-id').value = id;
   document.getElementById('edit-almacen').checked = almacen;
   document.getElementById('edit-bodega').checked = bodega;
@@ -514,6 +518,7 @@ function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos, crearM
   document.getElementById('edit-movimientos').checked = movimientos || false;
   document.getElementById('edit-crear-movimientos').checked = crearMovimientos || false;
   document.getElementById('edit-refmarca').checked = refMarca || false;
+  document.getElementById('edit-deposito').checked = deposito || false;
   setGrupos('edit-grupos', gruposStr ? gruposStr.split(', ').map(g=>g.trim()).filter(Boolean) : []);
   document.getElementById('modal-editar').classList.add('open');
 }
@@ -523,6 +528,7 @@ function guardarEdicion() {
     body: JSON.stringify({id: parseInt(document.getElementById('edit-id').value),
       puede_editar_almacen: document.getElementById('edit-almacen').checked,
       puede_editar_bodega: document.getElementById('edit-bodega').checked,
+      puede_editar_deposito_almacen: document.getElementById('edit-deposito').checked,
       puede_editar_referencia_marca: document.getElementById('edit-refmarca').checked,
       puede_ver_movimientos: document.getElementById('edit-movimientos').checked,
       puede_crear_movimientos: document.getElementById('edit-crear-movimientos').checked,
@@ -814,6 +820,17 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape'){cerrarModal();cer
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
 
 
 
