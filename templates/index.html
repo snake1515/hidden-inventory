@@ -176,11 +176,12 @@
           <th onclick="ordenar('grupo')">Grupo</th>
           <th onclick="ordenar('existencias_bodega')">Almacén</th>
           <th onclick="ordenar('existencias_almacen')">Bodega</th>
+          <th onclick="ordenar('existencias_deposito_almacen')">Depósito Almacén</th>
           <th>Última modificación</th>
         </tr>
       </thead>
       <tbody id="tabla-body">
-        <tr><td colspan="8" class="empty">Busca un producto para comenzar</td></tr>
+        <tr><td colspan="9" class="empty">Busca un producto para comenzar</td></tr>
       </tbody>
     </table>
   </div>
@@ -231,7 +232,7 @@ document.getElementById('busqueda').addEventListener('input', function() {
 
 function buscar(q) {
   if (!q.trim()) {
-    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="8" class="empty">Busca un producto para comenzar</td></tr>';
+    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="9" class="empty">Busca un producto para comenzar</td></tr>';
     document.getElementById('stats').style.display = 'none';
     datosActuales = []; sortCol = null;
     return;
@@ -248,7 +249,7 @@ function renderTabla(data, actualizarStats=true) {
   const tbody = document.getElementById('tabla-body');
   const stats = document.getElementById('stats');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">Sin resultados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin resultados</td></tr>';
     stats.style.display = 'none';
     return;
   }
@@ -299,6 +300,15 @@ function renderTabla(data, actualizarStats=true) {
          </div></td>`
       : `<td class="locked">${item.existencias_bodega ?? 0}</td>`;
 
+    const depositoCell = PUEDE_ALMACEN
+      ? `<td><div class="editable">
+          <input type="number" value="${item.existencias_deposito_almacen ?? 0}"
+                 onchange="guardarDeposito('${item.rowid}',this)"
+                 onkeydown="if(event.key==='Enter') this.blur()"/>
+          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
+         </div></td>`
+      : `<td class="locked">${item.existencias_deposito_almacen ?? 0}</td>`;
+
     const nombreCell = `<td><div class="editable">
       <input type="text" value="${item.nombre || ''}" style="width:180px"
              onchange="guardarCampo('/admin/actualizar_nombre','nombre','${item.rowid}',this)"
@@ -314,6 +324,7 @@ function renderTabla(data, actualizarStats=true) {
       <td class="td-grupo">${item.grupo}</td>
       ${almacenCell}
       ${bodegaCell}
+      ${depositoCell}
       <td class="audit">${auditUser}${auditDate}</td>
     </tr>`;
   }).join('');
@@ -347,6 +358,15 @@ function guardarBodega(rowid, input) {
     });
 }
 
+function guardarDeposito(rowid, input) {
+  fetch('/actualizar_deposito_almacen', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({rowid, existencias_deposito_almacen: parseInt(input.value)||0})})
+    .then(r=>r.json()).then(res => {
+      if (res.success) { showToast(`✓ Depósito Almacén actualizado — ${res.usuario}`); actualizarAudit(input, res); }
+      else showToast('Error: ' + res.error, true);
+    });
+}
+
 function actualizarAudit(input, res) {
   const audit = input.closest('tr').querySelector('.audit');
   if (audit) audit.innerHTML = `<span class="user">${res.usuario}</span><br>${res.fecha}`;
@@ -360,6 +380,33 @@ function showToast(msg, isError=false) {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
