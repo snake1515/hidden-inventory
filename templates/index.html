@@ -3,383 +3,836 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>STOCKa — Inventario</title>
+<title>Panel Admin — Inventario</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
   :root {
     --bg:#0f0f0f; --surface:#1a1a1a; --surface2:#222; --border:#2a2a2a;
-    --accent:#e8ff3a; --text:#f0f0f0; --muted:#666; --success:#3affa0; --danger:#ff5a5a;
+    --accent:#e8ff3a; --text:#f0f0f0; --muted:#666;
+    --success:#3affa0; --danger:#ff5a5a; --warning:#ffb83a;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
 
   header { background:var(--surface); border-bottom:1px solid var(--border);
-    padding:0 24px; height:64px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between;
     position:sticky; top:0; z-index:100; }
+  .logo-h { font-family:'Space Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--accent); }
+  .hlinks { display:flex; gap:12px; }
+  .hlinks a { color:var(--muted); text-decoration:none; font-size:11px; font-family:'Space Mono',monospace;
+    letter-spacing:1px; padding:6px 14px; border:1px solid var(--border); border-radius:2px; transition:all .2s; }
+  .hlinks a:hover { border-color:var(--accent); color:var(--accent); }
 
-  .header-logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: 100%;
-  }
-  .header-logo img {
-    height: 40px;
-    width: auto;
-  }
-  .header-logo-text {
-    font-family:'Space Mono',monospace;
-    font-size: 12px;
-    letter-spacing: 3px;
-    color: var(--accent);
-    text-transform: uppercase;
-  }
+  .main { max-width:1100px; margin:0 auto; padding:32px 24px; }
 
-  .user-info { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
-  .user-info strong { color:var(--text); font-family:'Space Mono',monospace; font-size:11px; }
-  .badge { display:inline-block; font-size:10px; font-family:'Space Mono',monospace;
-           padding:2px 8px; border-radius:20px; letter-spacing:1px; }
-  .badge-on { background:rgba(232,255,58,.1); border:1px solid rgba(232,255,58,.3); color:var(--accent); }
-  .btn-logout { background:transparent; border:1px solid var(--border); color:var(--muted);
-    padding:6px 14px; font-size:11px; cursor:pointer; font-family:'Space Mono',monospace;
-    letter-spacing:1px; text-decoration:none; transition:all .2s; border-radius:2px; }
-  .btn-logout:hover { border-color:var(--accent); color:var(--accent); }
+  .tabs { display:flex; border-bottom:1px solid var(--border); margin-bottom:32px; }
+  .tab { padding:12px 24px; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; cursor:pointer; color:var(--muted); border:none; background:none;
+    border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .2s; }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab:hover:not(.active) { color:var(--text); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
 
-  .main { max-width:1500px; margin:0 auto; padding:32px 24px; padding-bottom:100px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:24px; margin-bottom:24px; }
+  .card-title { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:3px;
+    text-transform:uppercase; color:var(--accent); margin-bottom:20px; }
 
-  .search-bar { display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; }
-  .search-bar input { flex:1; min-width:200px; background:var(--surface); border:1px solid var(--border);
-    color:var(--text); padding:14px 18px; font-size:15px; font-family:'DM Sans',sans-serif;
-    outline:none; border-radius:2px; transition:border-color .2s; }
-  .search-bar input:focus { border-color:var(--accent); }
-  .btn-download { background:var(--surface); border:1px solid var(--border); color:var(--text);
-    padding:12px 16px; font-size:11px; cursor:pointer; text-decoration:none;
-    font-family:'Space Mono',monospace; letter-spacing:1px; display:flex; align-items:center;
-    gap:6px; border-radius:2px; transition:all .2s; white-space:nowrap; }
-  .btn-download:hover { border-color:var(--accent); color:var(--accent); }
+  .form-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; flex:1; min-width:130px; }
+  label { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-family:'Space Mono',monospace; }
+  input[type=text], input[type=password], input[type=number] {
+    background:var(--surface2); border:1px solid var(--border); color:var(--text);
+    padding:10px 14px; font-size:14px; font-family:'DM Sans',sans-serif; outline:none;
+    border-radius:2px; transition:border-color .2s; }
+  input:focus { border-color:var(--accent); }
+  .checkbox-label { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px; color:var(--text); }
+  .checkbox-label input { width:auto; accent-color:var(--accent); }
 
-  .stats { display:flex; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
-  .stat { background:var(--surface); border:1px solid var(--border); padding:10px 18px;
-    border-radius:4px; font-size:12px; color:var(--muted); }
-  .stat strong { color:var(--text); font-family:'Space Mono',monospace; font-size:16px; display:block; }
+  .grupos-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:10px;
+    border:1px solid var(--border); border-radius:2px; background:var(--surface2);
+    max-height:220px; overflow-y:auto; }
+  .grupo-check { display:flex; align-items:center; gap:8px; cursor:pointer; font-size:12px;
+    color:var(--muted); padding:6px 10px; border-radius:2px; transition:all .2s; border:1px solid transparent; }
+  .grupo-check:hover { color:var(--text); background:var(--surface); }
+  .grupo-check input { width:auto; flex-shrink:0; accent-color:var(--accent); }
+  .grupo-check.checked { color:var(--accent); background:rgba(232,255,58,.08); border-color:rgba(232,255,58,.2); }
 
-  .table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:4px; }
+  .btn { padding:10px 20px; font-size:12px; font-family:'Space Mono',monospace;
+    letter-spacing:1px; cursor:pointer; border-radius:2px; border:none; transition:opacity .2s; text-transform:uppercase; }
+  .btn-primary { background:var(--accent); color:#0f0f0f; font-weight:700; }
+  .btn-primary:hover { opacity:.85; }
+  .btn-primary:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-danger { background:transparent; border:1px solid var(--danger); color:var(--danger); }
+  .btn-danger:hover { background:rgba(255,90,90,.1); }
+  .btn-secondary { background:transparent; border:1px solid var(--border); color:var(--muted); }
+  .btn-secondary:hover { border-color:var(--text); color:var(--text); }
+
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  thead th { background:var(--surface); padding:11px 12px; text-align:left;
-    font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px;
-    text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border);
-    white-space:nowrap; cursor:pointer; user-select:none; }
-  thead th:hover { color:var(--text); }
-  thead th.sort-asc::after { content:' ↑'; color:var(--accent); }
-  thead th.sort-desc::after { content:' ↓'; color:var(--accent); }
+  thead th { background:var(--surface2); padding:10px 14px; text-align:left;
+    font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
   tbody tr { border-bottom:1px solid var(--border); transition:background .15s; }
-  tbody tr:last-child { border-bottom:none; }
   tbody tr:hover { background:var(--surface2); }
-  td { padding:10px 12px; vertical-align:middle; }
-  .td-codigo { color:var(--muted); font-family:'Space Mono',monospace; font-size:11px; }
-  .td-grupo { font-size:10px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+  tbody tr:last-child { border-bottom:none; }
+  td { padding:11px 14px; vertical-align:middle; }
 
-  .editable { display:inline-flex; align-items:center; gap:6px; }
-  .editable input[type=number] { background:transparent; border:none; border-bottom:1px solid var(--border);
-    color:var(--text); font-size:13px; font-family:'DM Sans',sans-serif;
-    width:68px; padding:2px 4px; outline:none; text-align:right; transition:border-color .2s; }
-  .editable input[type=number]:focus { border-color:var(--accent); }
-  .editable input[type=text] { background:transparent; border:none; border-bottom:1px solid var(--border);
-    color:var(--text); font-size:13px; font-family:'DM Sans',sans-serif;
-    width:90px; padding:2px 4px; outline:none; transition:border-color .2s; }
-  .editable input[type=text]:focus { border-color:var(--accent); }
-  .btn-save { background:var(--accent); color:#0f0f0f; border:none; font-size:10px;
-    font-family:'Space Mono',monospace; font-weight:700; letter-spacing:1px;
-    padding:3px 8px; cursor:pointer; border-radius:2px; opacity:0; transition:opacity .2s; }
-  .editable:hover .btn-save, .editable input:focus ~ .btn-save { opacity:1; }
-  .btn-save:hover { opacity:.85 !important; }
-  .locked { color:var(--muted); font-size:13px; }
+  .badge { display:inline-block; font-size:10px; font-family:'Space Mono',monospace; padding:2px 8px; border-radius:20px; }
+  .badge-on { background:rgba(58,255,160,.1); border:1px solid rgba(58,255,160,.3); color:var(--success); }
+  .badge-off { background:rgba(255,90,90,.1); border:1px solid rgba(255,90,90,.3); color:var(--danger); }
 
-  .audit { font-size:11px; color:var(--muted); line-height:1.5; }
-  .audit .user { color:var(--success); font-family:'Space Mono',monospace; font-size:10px; }
+  .search-inv { display:flex; gap:12px; margin-bottom:16px; }
+  .search-inv input { flex:1; }
 
-  .toast { position:fixed; bottom:100px; right:24px; background:var(--surface);
+  .drop-zone { border:2px dashed var(--border); border-radius:4px; padding:32px;
+    text-align:center; cursor:pointer; transition:all .2s; }
+  .drop-zone:hover, .drop-zone.dragover { border-color:var(--accent); background:rgba(232,255,58,.03); }
+  .drop-zone p { color:var(--muted); font-size:13px; margin-bottom:8px; }
+  .drop-zone .hint { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--muted); }
+
+  .file-selected { display:none; align-items:center; gap:12px; margin-top:12px;
+    padding:12px 16px; background:var(--surface2); border:1px solid var(--border); border-radius:4px; }
+  .file-selected.show { display:flex; }
+  .file-name { font-family:'Space Mono',monospace; font-size:12px; color:var(--text); flex:1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .btn-clear { background:none; border:none; color:var(--muted); cursor:pointer; font-size:18px; }
+  .btn-clear:hover { color:var(--danger); }
+
+  .progress-wrap { display:none; margin-top:16px; }
+  .progress-wrap.show { display:block; }
+  .progress-label { display:flex; justify-content:space-between;
+    font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:6px; }
+  .progress-bar-bg { background:var(--surface2); border:1px solid var(--border); border-radius:20px; height:10px; overflow:hidden; }
+  .progress-bar-fill { height:100%; background:var(--accent); border-radius:20px; width:0%; transition:width .3s ease; }
+
+  .csv-result { margin-top:16px; padding:14px; border-radius:4px; font-size:13px;
+    font-family:'Space Mono',monospace; display:none; }
+  .csv-result.ok { background:rgba(58,255,160,.08); border:1px solid rgba(58,255,160,.3); color:var(--success); }
+  .csv-result.err { background:rgba(255,90,90,.08); border:1px solid rgba(255,90,90,.3); color:var(--danger); }
+
+  .toast { position:fixed; bottom:24px; right:24px; background:var(--surface);
     border:1px solid var(--success); color:var(--success); padding:14px 20px;
     font-size:13px; font-family:'Space Mono',monospace; border-radius:4px;
-    opacity:0; transform:translateY(10px); transition:all .3s; z-index:9999; pointer-events:none; max-width:420px; }
+    opacity:0; transform:translateY(10px); transition:all .3s; z-index:9999; pointer-events:none; max-width:400px; }
   .toast.show { opacity:1; transform:translateY(0); }
   .toast.error { border-color:var(--danger); color:var(--danger); }
-  .empty { text-align:center; padding:60px 20px; color:var(--muted);
-    font-family:'Space Mono',monospace; font-size:12px; letter-spacing:2px; }
 
-  /* Footer */
-  .footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(15,15,15,0.95);
-    border-top: 1px solid var(--border);
-    padding: 16px 24px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    letter-spacing: 1px;
-  }
-  .footer a {
-    color: var(--accent);
-    text-decoration: none;
-    transition: opacity 0.2s;
-  }
-  .footer a:hover {
-    opacity: 0.8;
-    text-decoration: underline;
-  }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:1000;
+    display:none; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:32px; width:100%; max-width:620px; max-height:90vh; overflow-y:auto; position:relative; }
+  .modal-title { font-family:'Space Mono',monospace; font-size:13px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--accent); margin-bottom:24px; }
+  .modal-close { position:absolute; top:16px; right:16px; background:none; border:none;
+    color:var(--muted); font-size:20px; cursor:pointer; }
+  .modal-close:hover { color:var(--text); }
+  .modal-footer { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
+  .permisos-row { display:flex; gap:24px; flex-wrap:wrap; margin-bottom:20px; }
+  .grupos-btns { display:flex; gap:8px; margin-bottom:8px; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="header-logo">
-    <img src="{{ url_for('static', filename='img/stocka_logo.png') }}" alt="STOCKa"/>
-    <span class="header-logo-text">STOCKa</span>
-  </div>
-  <div class="user-info">
-    {% if puede_editar_bodega %}<span class="badge badge-on">BODEGA ✓</span>{% endif %}
-    {% if puede_editar_almacen %}<span class="badge badge-on">ALMACÉN ✓</span>{% endif %}
-    {% if puede_editar_referencia_marca %}<span class="badge badge-on">REF/MARCA ✓</span>{% endif %}
-    {% if puede_ver_movimientos %}
-    <a class="btn-logout" href="/movimientos" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Movimientos</a>
-    <a class="btn-logout" href="/kardex" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Kardex</a>
-    {% endif %}
-    <span>Usuario: <strong>{{ usuario }}</strong></span>
-    <a class="btn-logout" href="/logout">Salir</a>
+  <span class="logo-h">ADMIN — INVENTARIO</span>
+  <div class="hlinks">
+    <a href="/">Ver inventario</a>
+    <a href="/admin/logout">Cerrar sesión</a>
   </div>
 </header>
 
 <div class="main">
-  <div class="search-bar">
-    <input type="text" id="busqueda" placeholder="Buscar por nombre, código, referencia o marca..." autocomplete="off"/>
-    <a href="/descargar" class="btn-download">↓ Excel completo</a>
-    <a href="/descargar?solo_existencias=1" class="btn-download">↓ Con existencias</a>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('usuarios')">Usuarios</button>
+    <button class="tab" onclick="switchTab('inventario')">Inventario</button>
+    <button class="tab" onclick="switchTab('csv')">Carga CSV</button>
+    <button class="tab" onclick="switchTab('movimientos')">Movimientos</button>
   </div>
 
-  <div class="stats" id="stats" style="display:none">
-    <div class="stat"><strong id="stat-total">0</strong>Resultados</div>
-    <div class="stat"><strong id="stat-grupos">0</strong>Grupos</div>
+  <!-- ─── TAB USUARIOS ─── -->
+  <div class="tab-content active" id="tab-usuarios">
+    <div class="card">
+      <div class="card-title">Nuevo usuario</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre de usuario</label>
+          <input type="text" id="nu-nombre" placeholder="usuario123"/>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="nu-pass" placeholder="••••••••"/>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Grupos asignados</label>
+        <div class="grupos-btns">
+          <button class="btn btn-secondary" style="padding:5px 14px;font-size:10px" onclick="seleccionarTodosGrupos('nu-grupos',true)">Seleccionar todos</button>
+          <button class="btn btn-secondary" style="padding:5px 14px;font-size:10px" onclick="seleccionarTodosGrupos('nu-grupos',false)">Deseleccionar todos</button>
+        </div>
+        <div class="grupos-grid" id="nu-grupos">
+          {% for g in grupos_disponibles %}
+          <label class="grupo-check" onclick="toggleGrupoCheck(this)">
+            <input type="checkbox" value="{{ g }}"/> {{ g }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="permisos-row">
+        <label class="checkbox-label"><input type="checkbox" id="nu-bodega"/> Puede editar Bodega</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-almacen"/> Puede editar Almacén</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-deposito"/> Puede editar Depósito Almacén</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-refmarca"/> Puede editar Referencia/Marca</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-movimientos"/> Puede ver Movimientos</label>
+        <label class="checkbox-label"><input type="checkbox" id="nu-crear-movimientos"/> Puede crear Movimientos</label>
+      </div>
+      <button class="btn btn-primary" onclick="crearUsuario()">+ Crear usuario</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Usuarios registrados</div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>Usuario</th><th>Grupos</th><th>Bodega</th><th>Almacén</th><th>Depósito</th><th>Ref/Marca</th><th>Ver Mov.</th><th>Crear Mov.</th><th>Estado</th><th>Acciones</th></tr>
+        </thead>
+        <tbody>
+          {% for u in usuarios %}
+          <tr id="usr-{{ u.id }}">
+            <td><strong style="font-family:'Space Mono',monospace;font-size:12px">{{ u.nombre }}</strong></td>
+            <td style="max-width:260px;font-size:12px;color:var(--muted)">{{ u.grupos or '—' }}</td>
+            <td>{% if u.puede_editar_bodega %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_editar_almacen %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_editar_deposito_almacen %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_editar_referencia_marca %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_ver_movimientos %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.puede_crear_movimientos %}<span class="badge badge-on">Sí</span>{% else %}<span class="badge badge-off">No</span>{% endif %}</td>
+            <td>{% if u.activo %}<span class="badge badge-on">Activo</span>{% else %}<span class="badge badge-off">Inactivo</span>{% endif %}</td>
+            <td>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" style="padding:6px 12px;font-size:10px"
+                  onclick="abrirEditar({{ u.id }},{{ u.puede_editar_almacen|tojson }},{{ u.puede_editar_bodega|tojson }},{{ u.activo|tojson }},'{{ u.grupos or '' }}',{{ u.puede_ver_movimientos|tojson }},{{ u.puede_crear_movimientos|tojson }},{{ u.puede_editar_referencia_marca|tojson }},{{ u.puede_editar_deposito_almacen|tojson }})">Editar</button>
+                <button class="btn btn-danger" style="padding:6px 12px;font-size:10px"
+                  onclick="eliminarUsuario({{ u.id }},'{{ u.nombre }}')">Borrar</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% if not usuarios %}
+          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px;font-family:'Space Mono',monospace;font-size:11px">No hay usuarios creados</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+      </div>
+    </div>
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th onclick="ordenar('codigo')">Código</th>
-          <th onclick="ordenar('nombre')">Nombre</th>
-          <th onclick="ordenar('referencia')">Referencia</th>
-          <th onclick="ordenar('marca')">Marca</th>
-          <th onclick="ordenar('grupo')">Grupo</th>
-          <th onclick="ordenar('existencias_bodega')">Almacén</th>
-          <th onclick="ordenar('existencias_almacen')">Bodega</th>
-          <th onclick="ordenar('existencias_deposito_almacen')">Depósito Almacén</th>
-          <th>Última modificación</th>
-        </tr>
-      </thead>
-      <tbody id="tabla-body">
-        <tr><td colspan="9" class="empty">Busca un producto para comenzar</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+  <!-- ─── TAB INVENTARIO ─── -->
+  <div class="tab-content" id="tab-inventario">
+    <div class="card">
+      <div class="card-title">Agregar producto</div>
+      <div class="form-row">
+        <div class="form-group"><label>Código</label><input type="text" id="ai-codigo" placeholder="SKU001"/></div>
+        <div class="form-group" style="flex:2"><label>Nombre</label><input type="text" id="ai-nombre" placeholder="Nombre del producto"/></div>
+        <div class="form-group"><label>Referencia</label><input type="text" id="ai-referencia" placeholder="REF-001"/></div>
+        <div class="form-group"><label>Marca</label><input type="text" id="ai-marca" placeholder="HONDA"/></div>
+        <div class="form-group"><label>Grupo</label><input type="text" id="ai-grupo" placeholder="ACEITES"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Existencias Almacén</label><input type="number" id="ai-almacen" value="0"/></div>
+        <div class="form-group"><label>Existencias Bodega</label><input type="number" id="ai-bodega" value="0"/></div>
+      </div>
+      <button class="btn btn-primary" onclick="agregarItem()">+ Agregar producto</button>
+    </div>
 
-<div class="footer">
-  © 2024 STOCKa • Powered by <a href="https://softgest-portfolio.onrender.com" target="_blank">SoftGest</a>
+    <div class="card">
+      <div class="card-title">Buscar, editar y eliminar productos</div>
+      <div class="search-inv">
+        <input type="text" id="busq-inv" placeholder="Buscar por nombre, código, referencia o marca..." oninput="buscarInventario(this.value)"/>
+      </div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr><th>Código</th><th>Nombre</th><th>Referencia</th><th>Marca</th><th>Grupo</th><th>Almacén</th><th>Bodega</th><th>Modificado por</th><th>Acciones</th></tr>
+        </thead>
+        <tbody id="tbody-inv">
+          <tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px;font-family:'Space Mono',monospace;font-size:11px">Busca un producto</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(255,90,90,0.3)">
+      <div class="card-title" style="color:var(--danger)">Zona de peligro</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Borra <strong style="color:var(--text)">todos</strong> los productos del inventario. Esta acción no se puede deshacer.</p>
+      <button class="btn btn-danger" onclick="purgarInventario()">🗑 Purgar inventario completo</button>
+    </div>
+  </div>
+
+  <!-- ─── TAB CSV ─── -->
+  <div class="tab-content" id="tab-csv">
+    <div class="card">
+      <div class="card-title">Carga masiva de productos</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">
+        Columnas requeridas: <strong style="color:var(--text);font-family:'Space Mono',monospace">codigo, nombre, grupo</strong>
+        — Opcionales: <span style="font-family:'Space Mono',monospace">referencia, marca, existencias_bodega, existencias_almacen</span>.
+        Acepta <code style="color:var(--accent)">,</code> o <code style="color:var(--accent)">;</code>.
+      </p>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event)">
+        <p>Arrastra tu archivo CSV aquí</p>
+        <p style="font-size:22px;margin:8px 0">📄</p>
+        <p class="hint">O haz clic para seleccionar</p>
+      </div>
+      <input type="file" id="csv-file" style="display:none" accept=".csv" onchange="seleccionarCSV(this,'csv-file-name','btn-subir-csv','csv-file-selected')"/>
+      <div class="file-selected" id="csv-file-selected">
+        <span style="font-size:18px">📄</span>
+        <span class="file-name" id="csv-file-name">—</span>
+        <button class="btn-clear" onclick="limpiarCSV('csv-file','csv-file-selected','btn-subir-csv','progress-csv','csv-result')">×</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="btn-subir-csv" onclick="subirCSV()" disabled>↑ Subir productos</button>
+      </div>
+      <div class="progress-wrap" id="progress-csv">
+        <div class="progress-label"><span id="progress-csv-label">Procesando...</span><span id="progress-csv-pct">0%</span></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-csv-fill"></div></div>
+      </div>
+      <div class="csv-result" id="csv-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Actualizar referencias masivamente</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        Solo columnas: <strong style="color:var(--text);font-family:'Space Mono',monospace">codigo, referencia</strong>.
+      </p>
+      <ul style="font-size:13px;color:var(--muted);margin-bottom:20px;padding-left:20px;line-height:2">
+        <li>Código existe + referencia tiene valor → <span style="color:var(--success)">actualiza</span></li>
+        <li>Código existe + referencia vacía o 0 → <span style="color:var(--warning)">no toca nada</span></li>
+        <li>Código no existe → <span style="color:var(--muted)">ignora</span></li>
+      </ul>
+      <div class="drop-zone" id="drop-zone-ref" onclick="document.getElementById('csv-ref-file').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')" ondrop="handleDropRef(event)">
+        <p>Arrastra tu CSV de referencias aquí</p>
+        <p style="font-size:22px;margin:8px 0">🏷️</p>
+        <p class="hint">O haz clic para seleccionar</p>
+      </div>
+      <input type="file" id="csv-ref-file" style="display:none" accept=".csv" onchange="seleccionarCSV(this,'csv-ref-file-name','btn-subir-ref','csv-ref-file-selected')"/>
+      <div class="file-selected" id="csv-ref-file-selected">
+        <span style="font-size:18px">🏷️</span>
+        <span class="file-name" id="csv-ref-file-name">—</span>
+        <button class="btn-clear" onclick="limpiarCSV('csv-ref-file','csv-ref-file-selected','btn-subir-ref','progress-ref','csv-ref-result')">×</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="btn-subir-ref" onclick="subirCSVReferencias()" disabled>↑ Subir referencias</button>
+      </div>
+      <div class="progress-wrap" id="progress-ref">
+        <div class="progress-label"><span id="progress-ref-label">Procesando...</span><span id="progress-ref-pct">0%</span></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-ref-fill"></div></div>
+      </div>
+      <div class="csv-result" id="csv-ref-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Actualizar nombres masivamente</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+        Solo columnas: <strong style="color:var(--text);font-family:'Space Mono',monospace">codigo, nombre</strong>.
+      </p>
+      <ul style="font-size:13px;color:var(--muted);margin-bottom:20px;padding-left:20px;line-height:2">
+        <li>Código existe + nombre tiene valor → <span style="color:var(--success)">actualiza</span></li>
+        <li>Código existe + nombre vacío o 0 → <span style="color:var(--warning)">no toca nada</span></li>
+        <li>Código no existe → <span style="color:var(--muted)">ignora</span></li>
+      </ul>
+      <div class="drop-zone" id="drop-zone-nom" onclick="document.getElementById('csv-nom-file').click()"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')" ondrop="handleDropNom(event)">
+        <p>Arrastra tu CSV de nombres aquí</p>
+        <p style="font-size:22px;margin:8px 0">✏️</p>
+        <p class="hint">O haz clic para seleccionar</p>
+      </div>
+      <input type="file" id="csv-nom-file" style="display:none" accept=".csv" onchange="seleccionarCSV(this,'csv-nom-file-name','btn-subir-nom','csv-nom-file-selected')"/>
+      <div class="file-selected" id="csv-nom-file-selected">
+        <span style="font-size:18px">✏️</span>
+        <span class="file-name" id="csv-nom-file-name">—</span>
+        <button class="btn-clear" onclick="limpiarCSV('csv-nom-file','csv-nom-file-selected','btn-subir-nom','progress-nom','csv-nom-result')">×</button>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn btn-primary" id="btn-subir-nom" onclick="subirCSVNombres()" disabled>↑ Subir nombres</button>
+      </div>
+      <div class="progress-wrap" id="progress-nom">
+        <div class="progress-label"><span id="progress-nom-label">Procesando...</span><span id="progress-nom-pct">0%</span></div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-nom-fill"></div></div>
+      </div>
+      <div class="csv-result" id="csv-nom-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Formato esperado</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">CSV de productos:</p>
+      <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto;margin-bottom:16px">codigo,nombre,referencia,marca,grupo,existencias_bodega,existencias_almacen
+SKU001,Aceite Motor 10W40,REF-001,HONDA,ACEITES,24,12</pre>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">CSV de referencias:</p>
+      <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto;margin-bottom:16px">codigo,referencia
+1,A412
+2,B203</pre>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">CSV de nombres:</p>
+      <pre style="background:var(--surface2);padding:14px;border-radius:4px;font-family:'Space Mono',monospace;font-size:12px;color:var(--muted);overflow-x:auto">codigo,nombre
+1,Bujia BWS 11
+2,Aceite Motor 20W50</pre>
+    </div>
+  </div>  <!-- ─── TAB MOVIMIENTOS ─── -->
+  <div class="tab-content" id="tab-movimientos">
+    <div class="card">
+      <div class="card-title">Acceso a Movimientos</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        El módulo de movimientos permite registrar ingresos, egresos y traslados de inventario.
+        Puedes habilitarlo por usuario desde la pestaña <strong style="color:var(--text)">Usuarios</strong> → Editar → "Puede ver Movimientos".
+      </p>
+      <a href="/movimientos" class="btn btn-primary" style="display:inline-block;text-decoration:none">→ Ir a Movimientos</a>
+    </div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- MODAL EDITAR USUARIO -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <div class="modal-title">Editar usuario</div>
+    <button class="modal-close" onclick="cerrarModal()">×</button>
+    <input type="hidden" id="edit-id"/>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Grupos asignados</label>
+      <div class="grupos-btns">
+        <button class="btn btn-secondary" style="padding:5px 14px;font-size:10px" onclick="seleccionarTodosGrupos('edit-grupos',true)">Seleccionar todos</button>
+        <button class="btn btn-secondary" style="padding:5px 14px;font-size:10px" onclick="seleccionarTodosGrupos('edit-grupos',false)">Deseleccionar todos</button>
+      </div>
+      <div class="grupos-grid" id="edit-grupos">
+        {% for g in grupos_disponibles %}
+        <label class="grupo-check" onclick="toggleGrupoCheck(this)">
+          <input type="checkbox" value="{{ g }}"/> {{ g }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="permisos-row">
+      <label class="checkbox-label"><input type="checkbox" id="edit-bodega"/> Puede editar Bodega</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-almacen"/> Puede editar Almacén</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-deposito"/> Puede editar Depósito Almacén</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-refmarca"/> Puede editar Referencia/Marca</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-movimientos"/> Puede ver Movimientos</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-crear-movimientos"/> Puede crear Movimientos</label>
+      <label class="checkbox-label"><input type="checkbox" id="edit-activo"/> Usuario activo</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEdicion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR ITEM -->
+<div class="modal-overlay" id="modal-editar-item">
+  <div class="modal">
+    <div class="modal-title">Editar producto</div>
+    <button class="modal-close" onclick="cerrarModalItem()">×</button>
+    <input type="hidden" id="ei-codigo-original"/>
+    <div class="form-row">
+      <div class="form-group"><label>Código</label><input type="text" id="ei-codigo"/></div>
+      <div class="form-group" style="flex:2"><label>Nombre</label><input type="text" id="ei-nombre"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Referencia</label><input type="text" id="ei-referencia"/></div>
+      <div class="form-group"><label>Marca</label><input type="text" id="ei-marca"/></div>
+      <div class="form-group"><label>Grupo</label><input type="text" id="ei-grupo"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Almacén</label><input type="number" id="ei-almacen"/></div>
+      <div class="form-group"><label>Bodega</label><input type="number" id="ei-bodega"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModalItem()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarItem()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const PUEDE_ALMACEN = {{ 'true' if puede_editar_almacen else 'false' }};
-const PUEDE_BODEGA  = {{ 'true' if puede_editar_bodega else 'false' }};
-const IS_ADMIN = {{ 'true' if es_admin else 'false' }};
-const PUEDE_EDITAR_ALGO = PUEDE_ALMACEN || PUEDE_BODEGA || IS_ADMIN;
-const PUEDE_REF_MARCA = {{ 'true' if puede_editar_referencia_marca else 'false' }} || IS_ADMIN; // referencia/marca requieren permiso explícito, ya no basta con bodega/almacén
-let debounceTimer;
-let datosActuales = [];
-let sortCol = null;
-let sortDir = 1; // 1 asc, -1 desc
+// ─── TABS ───
+function switchTab(name) {
+  const names = ['usuarios','inventario','csv','movimientos'];
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', names[i]===name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id==='tab-'+name));
+}
 
-function ordenar(col) {
-  if (sortCol === col) sortDir *= -1;
-  else { sortCol = col; sortDir = 1; }
+// ─── GRUPOS ───
+function toggleGrupoCheck(label) {
+  const cb = label.querySelector('input');
+  cb.checked = !cb.checked;
+  label.classList.toggle('checked', cb.checked);
+}
+function seleccionarTodosGrupos(containerId, sel) {
+  document.querySelectorAll(`#${containerId} .grupo-check`).forEach(label => {
+    const cb = label.querySelector('input');
+    cb.checked = sel; label.classList.toggle('checked', sel);
+  });
+}
+function getGrupos(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(cb=>cb.value);
+}
+function setGrupos(containerId, grupos) {
+  document.querySelectorAll(`#${containerId} .grupo-check`).forEach(label => {
+    const cb = label.querySelector('input');
+    const sel = grupos.includes(cb.value);
+    cb.checked = sel; label.classList.toggle('checked', sel);
+  });
+}
 
-  // Actualizar estilos headers
-  document.querySelectorAll('thead th').forEach(th => {
-    th.classList.remove('sort-asc','sort-desc');
-    if (th.getAttribute('onclick') === `ordenar('${col}')`) {
-      th.classList.add(sortDir===1 ? 'sort-asc' : 'sort-desc');
+// ─── USUARIOS ───
+function crearUsuario() {
+  const nombre = document.getElementById('nu-nombre').value.trim();
+  const pass = document.getElementById('nu-pass').value.trim();
+  if (!nombre || !pass) { showToast('Completa nombre y contraseña', true); return; }
+  fetch('/admin/crear_usuario', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({nombre, password:pass,
+      puede_editar_almacen: document.getElementById('nu-almacen').checked,
+      puede_editar_bodega: document.getElementById('nu-bodega').checked,
+      puede_editar_deposito_almacen: document.getElementById('nu-deposito').checked,
+      puede_editar_referencia_marca: document.getElementById('nu-refmarca').checked,
+      puede_ver_movimientos: document.getElementById('nu-movimientos').checked,
+      puede_crear_movimientos: document.getElementById('nu-crear-movimientos').checked,
+      grupos: getGrupos('nu-grupos')})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) { showToast('✓ Usuario creado'); setTimeout(()=>location.reload(),1200); }
+    else showToast('Error: '+res.error, true);
+  });
+}
+
+function abrirEditar(id, almacen, bodega, activo, gruposStr, movimientos, crearMovimientos, refMarca, deposito) {
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-almacen').checked = almacen;
+  document.getElementById('edit-bodega').checked = bodega;
+  document.getElementById('edit-activo').checked = activo;
+  document.getElementById('edit-movimientos').checked = movimientos || false;
+  document.getElementById('edit-crear-movimientos').checked = crearMovimientos || false;
+  document.getElementById('edit-refmarca').checked = refMarca || false;
+  document.getElementById('edit-deposito').checked = deposito || false;
+  setGrupos('edit-grupos', gruposStr ? gruposStr.split(', ').map(g=>g.trim()).filter(Boolean) : []);
+  document.getElementById('modal-editar').classList.add('open');
+}
+function cerrarModal() { document.getElementById('modal-editar').classList.remove('open'); }
+function guardarEdicion() {
+  fetch('/admin/editar_usuario', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({id: parseInt(document.getElementById('edit-id').value),
+      puede_editar_almacen: document.getElementById('edit-almacen').checked,
+      puede_editar_bodega: document.getElementById('edit-bodega').checked,
+      puede_editar_deposito_almacen: document.getElementById('edit-deposito').checked,
+      puede_editar_referencia_marca: document.getElementById('edit-refmarca').checked,
+      puede_ver_movimientos: document.getElementById('edit-movimientos').checked,
+      puede_crear_movimientos: document.getElementById('edit-crear-movimientos').checked,
+      activo: document.getElementById('edit-activo').checked,
+      grupos: getGrupos('edit-grupos')})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) { showToast('✓ Usuario actualizado'); setTimeout(()=>location.reload(),1200); }
+    else showToast('Error: '+res.error, true);
+  });
+}
+function eliminarUsuario(id, nombre) {
+  if (!confirm(`¿Eliminar al usuario "${nombre}"?`)) return;
+  fetch('/admin/eliminar_usuario', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id})})
+    .then(r=>r.json()).then(res => {
+      if (res.success) { showToast('✓ Usuario eliminado'); document.getElementById('usr-'+id)?.remove(); }
+      else showToast('Error: '+res.error, true);
+    });
+}
+
+// ─── INVENTARIO ───
+let debounce;
+function buscarInventario(q) {
+  clearTimeout(debounce);
+  debounce = setTimeout(() => {
+    if (!q.trim()) { document.getElementById('tbody-inv').innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px;font-family:Space Mono,monospace;font-size:11px">Busca un producto</td></tr>'; return; }
+    fetch('/admin/buscar_items?q='+encodeURIComponent(q)).then(r=>r.json()).then(renderInvTabla);
+  }, 300);
+}
+function renderInvTabla(data) {
+  const tbody = document.getElementById('tbody-inv');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:32px;font-family:Space Mono,monospace;font-size:11px">Sin resultados</td></tr>'; return; }
+  tbody.innerHTML = data.map(item => `<tr>
+    <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">${item.codigo}</td>
+    <td>${item.nombre}</td>
+    <td style="font-size:12px;color:var(--muted)">${item.referencia||'—'}</td>
+    <td style="font-size:12px;color:var(--muted)">${item.marca||'—'}</td>
+    <td style="font-size:11px;color:var(--muted)">${item.grupo}</td>
+    <td>${item.existencias_almacen??0}</td>
+    <td>${item.existencias_bodega??0}</td>
+    <td style="font-size:11px;color:var(--muted)">${item.modificado_por||'—'}</td>
+    <td><div style="display:flex;gap:6px">
+      <button class="btn btn-secondary" style="padding:5px 12px;font-size:10px"
+        onclick="abrirEditarItem(${JSON.stringify(item).replace(/"/g,'&quot;')})">Editar</button>
+      <button class="btn btn-danger" style="padding:5px 12px;font-size:10px"
+        onclick="eliminarItem('${item.codigo}','${item.nombre.replace(/'/g,"\\'")}')">Borrar</button>
+    </div></td>
+  </tr>`).join('');
+}
+function agregarItem() {
+  const codigo = document.getElementById('ai-codigo').value.trim();
+  const nombre = document.getElementById('ai-nombre').value.trim();
+  const grupo = document.getElementById('ai-grupo').value.trim();
+  if (!codigo||!nombre||!grupo) { showToast('Código, nombre y grupo son obligatorios', true); return; }
+  fetch('/admin/agregar_item', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({codigo, nombre,
+      referencia: document.getElementById('ai-referencia').value.trim(),
+      marca: document.getElementById('ai-marca').value.trim(), grupo,
+      existencias_almacen: parseInt(document.getElementById('ai-almacen').value)||0,
+      existencias_bodega: parseInt(document.getElementById('ai-bodega').value)||0})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) {
+      showToast('✓ Producto agregado');
+      ['ai-codigo','ai-nombre','ai-referencia','ai-marca','ai-grupo'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('ai-bodega').value=0; document.getElementById('ai-almacen').value=0;
+    } else showToast('Error: '+res.error, true);
+  });
+}
+function eliminarItem(codigo, nombre) {
+  if (!confirm(`¿Eliminar "${nombre}" (${codigo})?`)) return;
+  fetch('/admin/eliminar_item', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({codigo})})
+    .then(r=>r.json()).then(res => {
+      if (res.success) { showToast('✓ Producto eliminado'); buscarInventario(document.getElementById('busq-inv').value); }
+      else showToast('Error: '+res.error, true);
+    });
+}
+function abrirEditarItem(item) {
+  document.getElementById('ei-codigo-original').value = item.codigo;
+  document.getElementById('ei-codigo').value = item.codigo;
+  document.getElementById('ei-nombre').value = item.nombre;
+  document.getElementById('ei-referencia').value = item.referencia||'';
+  document.getElementById('ei-marca').value = item.marca||'';
+  document.getElementById('ei-grupo').value = item.grupo;
+  document.getElementById('ei-almacen').value = item.existencias_almacen??0;
+  document.getElementById('ei-bodega').value = item.existencias_bodega??0;
+  document.getElementById('modal-editar-item').classList.add('open');
+}
+function cerrarModalItem() { document.getElementById('modal-editar-item').classList.remove('open'); }
+function guardarItem() {
+  const codigo = document.getElementById('ei-codigo').value.trim();
+  const nombre = document.getElementById('ei-nombre').value.trim();
+  const grupo = document.getElementById('ei-grupo').value.trim();
+  if (!codigo||!nombre||!grupo) { showToast('Código, nombre y grupo son obligatorios', true); return; }
+  fetch('/admin/editar_item', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({codigo_original: document.getElementById('ei-codigo-original').value,
+      codigo, nombre, referencia: document.getElementById('ei-referencia').value.trim(),
+      marca: document.getElementById('ei-marca').value.trim(), grupo,
+      existencias_almacen: parseInt(document.getElementById('ei-almacen').value)||0,
+      existencias_bodega: parseInt(document.getElementById('ei-bodega').value)||0})
+  }).then(r=>r.json()).then(res => {
+    if (res.success) { showToast('✓ Producto actualizado'); cerrarModalItem(); buscarInventario(document.getElementById('busq-inv').value); }
+    else showToast('Error: '+res.error, true);
+  });
+}
+function purgarInventario() {
+  if (!confirm('⚠️ ¿Estás seguro? Esto borrará TODOS los productos del inventario.')) return;
+  if (!confirm('🚨 Confirmación final: esta acción NO se puede deshacer. ¿Continuar?')) return;
+  fetch('/admin/purgar_inventario', {method:'POST', headers:{'Content-Type':'application/json'}})
+    .then(r=>r.json()).then(res => {
+      if (res.success) showToast(`✓ Inventario purgado — ${res.eliminados} productos eliminados`);
+      else showToast('Error: '+res.error, true);
+    });
+}
+
+// ─── CSV HELPERS ───
+function seleccionarCSV(input, nameId, btnId, selectedId) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById(nameId).textContent = file.name;
+  document.getElementById(selectedId).classList.add('show');
+  const btn = document.getElementById(btnId);
+  btn.disabled = false; btn.style.opacity = '1';
+}
+function limpiarCSV(fileId, selectedId, btnId, progressId, resultId) {
+  document.getElementById(fileId).value = '';
+  document.getElementById(selectedId).classList.remove('show');
+  const btn = document.getElementById(btnId);
+  btn.disabled = true; btn.style.opacity = '0.4';
+  document.getElementById(progressId).classList.remove('show');
+  const res = document.getElementById(resultId);
+  res.style.display='none'; res.className='csv-result';
+}
+
+function handleDrop(e) {
+  e.preventDefault(); document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(file);
+  const input = document.getElementById('csv-file'); input.files = dt.files;
+  seleccionarCSV(input,'csv-file-name','btn-subir-csv','csv-file-selected');
+}
+function handleDropRef(e) {
+  e.preventDefault(); document.getElementById('drop-zone-ref').classList.remove('dragover');
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(file);
+  const input = document.getElementById('csv-ref-file'); input.files = dt.files;
+  seleccionarCSV(input,'csv-ref-file-name','btn-subir-ref','csv-ref-file-selected');
+}
+function handleDropNom(e) {
+  e.preventDefault(); document.getElementById('drop-zone-nom').classList.remove('dragover');
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const dt = new DataTransfer(); dt.items.add(file);
+  const input = document.getElementById('csv-nom-file'); input.files = dt.files;
+  seleccionarCSV(input,'csv-nom-file-name','btn-subir-nom','csv-nom-file-selected');
+}
+
+async function procesarCSV(fileId, endpoint, progressId, labelId, pctId, fillId, resultId, btnId, campoConteo, etiqueta) {
+  const file = document.getElementById(fileId).files[0]; if (!file) return;
+  const btn = document.getElementById(btnId); btn.disabled=true; btn.style.opacity='0.5';
+  const esCargaPrincipal = endpoint === '/admin/carga_csv_lote';
+
+  // Leer archivo siempre con FileReader para máxima compatibilidad
+  const texto = await new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = e => resolve(e.target.result);
+    r.onerror = () => reject(new Error('Error leyendo archivo'));
+    r.readAsText(file, 'ISO-8859-1');
+  });
+  const primeraLinea = texto.split('\n')[0];
+  const sep = primeraLinea.includes(';') ? ';' : ',';
+  const lineas = texto.split('\n').map(l=>l.trim()).filter(l=>l);
+  const headers = lineas[0].split(sep).map(h=>h.trim().toLowerCase().replace(/\ufeff/g,''));
+
+  console.log('Separador detectado:', sep);
+  console.log('Headers:', headers);
+  console.log('Primera fila de datos:', lineas[1]);
+
+  const filas = [];
+  for (let i=1; i<lineas.length; i++) {
+    const cols = lineas[i].split(sep);
+    const obj = {}; headers.forEach((h,idx)=>{ obj[h]=(cols[idx]||'').trim(); });
+    if (obj.codigo) filas.push(obj);
+  }
+
+  document.getElementById(progressId).classList.add('show');
+
+  // La carga principal usa un flujo de 3 pasos para soportar archivos grandes
+  // sin saturar Render: 1) crear movimiento padre, 2) subir cada lote como
+  // movimiento hijo (CSV-0007-A, CSV-0007-B...), 3) generar el PDF final
+  // que resume TODOS los lotes juntos.
+  if (esCargaPrincipal) {
+    let movPadreId, consecutivoPadre;
+    try {
+      const resInit = await fetch('/admin/iniciar_carga_csv', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({nombre_archivo: file.name})});
+      const dataInit = await resInit.json();
+      if (!dataInit.success) { showToast('Error iniciando carga: '+dataInit.error, true); btn.disabled=false; btn.style.opacity='1'; return; }
+      movPadreId = dataInit.mov_padre_id;
+      consecutivoPadre = dataInit.consecutivo;
+    } catch(err) {
+      showToast('Error de conexión iniciando la carga', true);
+      btn.disabled=false; btn.style.opacity='1';
+      return;
     }
-  });
 
-  const sorted = [...datosActuales].sort((a,b) => {
-    let va = a[col] ?? '';
-    let vb = b[col] ?? '';
-    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * sortDir;
-    return String(va).localeCompare(String(vb), 'es') * sortDir;
-  });
-  renderTabla(sorted, false);
-}
+    const LOTE = 500; const totalLotes = Math.ceil(filas.length/LOTE);
+    let totalOk=0, totalOmit=0;
+    for (let i=0; i<totalLotes; i++) {
+      const pct = Math.round((i/totalLotes)*90); // deja 10% para el cierre
+      document.getElementById(fillId).style.width=pct+'%';
+      document.getElementById(pctId).textContent=pct+'%';
+      document.getElementById(labelId).textContent=`Lote ${i+1} de ${totalLotes}...`;
+      try {
+        const res = await fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            filas: filas.slice(i*LOTE,(i+1)*LOTE),
+            mov_padre_id: movPadreId,
+            indice_lote: i,
+          })});
+        const data = await res.json();
+        if (data.success) { totalOk+=data.insertados||0; totalOmit+=data.omitidos||0; }
+        else { showToast('Error lote '+(i+1)+': '+data.error,true); break; }
+      } catch(err) { showToast('Error de conexión en lote '+(i+1),true); break; }
+    }
 
-document.getElementById('busqueda').addEventListener('input', function() {
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => buscar(this.value), 300);
-});
+    document.getElementById(labelId).textContent='Generando comprobante...';
+    let dataFin = {};
+    try {
+      const resFin = await fetch('/admin/finalizar_carga_csv', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({mov_padre_id: movPadreId})});
+      dataFin = await resFin.json();
+    } catch(err) {
+      showToast('Carga completa, pero falló la generación del PDF final', true);
+    }
 
-function buscar(q) {
-  if (!q.trim()) {
-    document.getElementById('tabla-body').innerHTML = '<tr><td colspan="9" class="empty">Busca un producto para comenzar</td></tr>';
-    document.getElementById('stats').style.display = 'none';
-    datosActuales = []; sortCol = null;
+    document.getElementById(fillId).style.width='100%';
+    document.getElementById(pctId).textContent='100%';
+    document.getElementById(labelId).textContent='¡Completado!';
+    const div = document.getElementById(resultId);
+    div.style.display='block'; div.className='csv-result ok';
+    const label = `Insertados: ${totalOk} | Omitidos: ${totalOmit}`;
+    div.textContent = `✓ ${label} — Movimiento ${consecutivoPadre}`;
+    showToast(`✓ ${totalOk} productos cargados — ${consecutivoPadre}`);
+    btn.disabled=false; btn.style.opacity='1';
     return;
   }
-  fetch('/buscar?q=' + encodeURIComponent(q)).then(r => r.json()).then(data => {
-    datosActuales = data;
-    sortCol = null; sortDir = 1;
-    document.querySelectorAll('thead th').forEach(th => th.classList.remove('sort-asc','sort-desc'));
-    renderTabla(data, true);
-  });
-}
 
-function renderTabla(data, actualizarStats=true) {
-  const tbody = document.getElementById('tabla-body');
-  const stats = document.getElementById('stats');
-  if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">Sin resultados</td></tr>';
-    stats.style.display = 'none';
-    return;
+  // Flujo original por lotes (carga de referencias u otros endpoints)
+  const LOTE = 500; const totalLotes = Math.ceil(filas.length/LOTE);
+  let totalOk=0, totalOmit=0;
+  for (let i=0; i<totalLotes; i++) {
+    const pct = Math.round((i/totalLotes)*100);
+    document.getElementById(fillId).style.width=pct+'%';
+    document.getElementById(pctId).textContent=pct+'%';
+    document.getElementById(labelId).textContent=`Lote ${i+1} de ${totalLotes}...`;
+    try {
+      const res = await fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({filas: filas.slice(i*LOTE,(i+1)*LOTE)})});
+      const data = await res.json();
+      if (data.success) { totalOk+=data[campoConteo]||0; totalOmit+=data.omitidos||0; }
+      else { showToast('Error lote '+(i+1)+': '+data.error,true); break; }
+    } catch(err) { showToast('Error de conexión en lote '+(i+1),true); break; }
   }
-  if (actualizarStats) {
-    const grupos = new Set(data.map(d => d.grupo));
-    document.getElementById('stat-total').textContent = data.length;
-    document.getElementById('stat-grupos').textContent = grupos.size;
-    stats.style.display = 'flex';
-  }
-
-  tbody.innerHTML = data.map(item => {
-    const auditUser = item.modificado_por ? `<span class="user">${item.modificado_por}</span><br>` : '';
-    const auditDate = item.ultima_mod_cantidad || '—';
-
-    const refCell = PUEDE_REF_MARCA
-      ? `<td><div class="editable">
-          <input type="text" value="${item.referencia || ''}"
-                 onchange="guardarCampo('/actualizar_referencia','referencia','${item.rowid}',this)"
-                 onkeydown="if(event.key==='Enter') this.blur()"/>
-          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-        </div></td>`
-      : `<td class="locked">${item.referencia || ''}</td>`;
-
-    const marcaCell = PUEDE_REF_MARCA
-      ? `<td><div class="editable">
-          <input type="text" value="${item.marca || ''}"
-                 onchange="guardarCampo('/actualizar_marca','marca','${item.rowid}',this)"
-                 onkeydown="if(event.key==='Enter') this.blur()"/>
-          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-        </div></td>`
-      : `<td class="locked">${item.marca || ''}</td>`;
-
-    const almacenCell = PUEDE_ALMACEN
-      ? `<td><div class="editable">
-          <input type="number" value="${item.existencias_almacen ?? 0}"
-                 onchange="guardarAlmacen('${item.rowid}',this)"
-                 onkeydown="if(event.key==='Enter') this.blur()"/>
-          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-         </div></td>`
-      : `<td class="locked">${item.existencias_almacen ?? 0}</td>`;
-
-    const bodegaCell = PUEDE_BODEGA
-      ? `<td><div class="editable">
-          <input type="number" value="${item.existencias_bodega ?? 0}"
-                 onchange="guardarBodega('${item.rowid}',this)"
-                 onkeydown="if(event.key==='Enter') this.blur()"/>
-          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-         </div></td>`
-      : `<td class="locked">${item.existencias_bodega ?? 0}</td>`;
-
-    const depositoCell = PUEDE_ALMACEN
-      ? `<td><div class="editable">
-          <input type="number" value="${item.existencias_deposito_almacen ?? 0}"
-                 onchange="guardarDeposito('${item.rowid}',this)"
-                 onkeydown="if(event.key==='Enter') this.blur()"/>
-          <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-         </div></td>`
-      : `<td class="locked">${item.existencias_deposito_almacen ?? 0}</td>`;
-
-    const nombreCell = `<td><div class="editable">
-      <input type="text" value="${item.nombre || ''}" style="width:180px"
-             onchange="guardarCampo('/admin/actualizar_nombre','nombre','${item.rowid}',this)"
-             onkeydown="if(event.key==='Enter') this.blur()"/>
-      <button class="btn-save" onclick="this.previousElementSibling.dispatchEvent(new Event('change'))">OK</button>
-    </div></td>`;
-
-    return `<tr>
-      <td class="td-codigo">${item.codigo}</td>
-      ${IS_ADMIN ? nombreCell : `<td>${item.nombre}</td>`}
-      ${refCell}
-      ${marcaCell}
-      <td class="td-grupo">${item.grupo}</td>
-      ${almacenCell}
-      ${bodegaCell}
-      ${depositoCell}
-      <td class="audit">${auditUser}${auditDate}</td>
-    </tr>`;
-  }).join('');
+  document.getElementById(fillId).style.width='100%';
+  document.getElementById(pctId).textContent='100%';
+  document.getElementById(labelId).textContent='¡Completado!';
+  const div = document.getElementById(resultId);
+  div.style.display='block'; div.className='csv-result ok';
+  const label = campoConteo==='insertados' ? `Insertados: ${totalOk} | Omitidos: ${totalOmit}` : `Actualizadas: ${totalOk} | Omitidas: ${totalOmit}`;
+  div.textContent = `✓ ${label}`;
+  showToast(`✓ ${totalOk} ${campoConteo==='insertados'?'productos cargados':(etiqueta||'registros actualizados')}`);
+  btn.disabled=false; btn.style.opacity='1';
 }
 
-function guardarCampo(url, campo, rowid, input) {
-  const body = {rowid};
-  body[campo] = input.value;
-  fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
-    .then(r=>r.json()).then(res => {
-      if (res.success) { showToast(`✓ ${campo} guardado — ${res.usuario}`); actualizarAudit(input, res); }
-      else showToast('Error: ' + res.error, true);
-    });
+function subirCSV() {
+  procesarCSV('csv-file','/admin/carga_csv_lote','progress-csv','progress-csv-label','progress-csv-pct','progress-csv-fill','csv-result','btn-subir-csv','insertados');
+}
+function subirCSVReferencias() {
+  procesarCSV('csv-ref-file','/admin/carga_csv_referencias_lote','progress-ref','progress-ref-label','progress-ref-pct','progress-ref-fill','csv-ref-result','btn-subir-ref','actualizados','referencias actualizadas');
+}
+function subirCSVNombres() {
+  procesarCSV('csv-nom-file','/admin/carga_csv_nombres_lote','progress-nom','progress-nom-label','progress-nom-pct','progress-nom-fill','csv-nom-result','btn-subir-nom','actualizados','nombres actualizados');
 }
 
-function guardarAlmacen(rowid, input) {
-  fetch('/actualizar_almacen', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({rowid, existencias_almacen: parseInt(input.value)||0})})
-    .then(r=>r.json()).then(res => {
-      if (res.success) { showToast(`✓ Almacén actualizado — ${res.usuario}`); actualizarAudit(input, res); }
-      else showToast('Error: ' + res.error, true);
-    });
-}
-
-function guardarBodega(rowid, input) {
-  fetch('/actualizar', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({rowid, existencias_bodega: parseInt(input.value)||0})})
-    .then(r=>r.json()).then(res => {
-      if (res.success) { showToast(`✓ Bodega actualizada — ${res.usuario}`); actualizarAudit(input, res); }
-      else showToast('Error: ' + res.error, true);
-    });
-}
-
-function guardarDeposito(rowid, input) {
-  fetch('/actualizar_deposito_almacen', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({rowid, existencias_deposito_almacen: parseInt(input.value)||0})})
-    .then(r=>r.json()).then(res => {
-      if (res.success) { showToast(`✓ Depósito Almacén actualizado — ${res.usuario}`); actualizarAudit(input, res); }
-      else showToast('Error: ' + res.error, true);
-    });
-}
-
-function actualizarAudit(input, res) {
-  const audit = input.closest('tr').querySelector('.audit');
-  if (audit) audit.innerHTML = `<span class="user">${res.usuario}</span><br>${res.fecha}`;
-}
-
+// ─── TOAST ───
 function showToast(msg, isError=false) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast'+(isError?' error':''); t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 3500);
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast'+(isError?' error':''); t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3500);
 }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){cerrarModal();cerrarModalItem();} });
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
