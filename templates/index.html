@@ -143,6 +143,7 @@
   <div class="user-info">
     {% if puede_editar_bodega %}<span class="badge badge-on">BODEGA ✓</span>{% endif %}
     {% if puede_editar_almacen %}<span class="badge badge-on">ALMACÉN ✓</span>{% endif %}
+    {% if puede_editar_referencia_marca %}<span class="badge badge-on">REF/MARCA ✓</span>{% endif %}
     {% if puede_ver_movimientos %}
     <a class="btn-logout" href="/movimientos" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Movimientos</a>
     <a class="btn-logout" href="/kardex" style="border-color:rgba(232,255,58,.3);color:var(--accent)">Kardex</a>
@@ -195,7 +196,8 @@
 const PUEDE_ALMACEN = {{ 'true' if puede_editar_almacen else 'false' }};
 const PUEDE_BODEGA  = {{ 'true' if puede_editar_bodega else 'false' }};
 const IS_ADMIN = {{ 'true' if es_admin else 'false' }};
-const PUEDE_EDITAR_ALGO = PUEDE_ALMACEN || PUEDE_BODEGA || IS_ADMIN; // referencia/marca solo si tiene algún permiso de edición
+const PUEDE_EDITAR_ALGO = PUEDE_ALMACEN || PUEDE_BODEGA || IS_ADMIN;
+const PUEDE_REF_MARCA = {{ 'true' if puede_editar_referencia_marca else 'false' }} || IS_ADMIN; // referencia/marca requieren permiso explícito, ya no basta con bodega/almacén
 let debounceTimer;
 let datosActuales = [];
 let sortCol = null;
@@ -261,7 +263,7 @@ function renderTabla(data, actualizarStats=true) {
     const auditUser = item.modificado_por ? `<span class="user">${item.modificado_por}</span><br>` : '';
     const auditDate = item.ultima_mod_cantidad || '—';
 
-    const refCell = PUEDE_EDITAR_ALGO
+    const refCell = PUEDE_REF_MARCA
       ? `<td><div class="editable">
           <input type="text" value="${item.referencia || ''}"
                  onchange="guardarCampo('/actualizar_referencia','referencia','${item.rowid}',this)"
@@ -270,7 +272,7 @@ function renderTabla(data, actualizarStats=true) {
         </div></td>`
       : `<td class="locked">${item.referencia || ''}</td>`;
 
-    const marcaCell = PUEDE_EDITAR_ALGO
+    const marcaCell = PUEDE_REF_MARCA
       ? `<td><div class="editable">
           <input type="text" value="${item.marca || ''}"
                  onchange="guardarCampo('/actualizar_marca','marca','${item.rowid}',this)"
@@ -358,6 +360,33 @@ function showToast(msg, isError=false) {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
